@@ -1,4 +1,7 @@
-# MONITOR — Command Center
+<div align="center">
+  <img src="assets/logo.svg" alt="MONITOR Logo" width="120">
+  <h1>MONITOR — Command Center</h1>
+</div>
 
 ![MONITOR screenshot](https://img.shields.io/badge/status-active-success?style=flat-square)
 ![GitHub last commit](https://img.shields.io/github/last-commit/flameeecyber/MONITOR-app)
