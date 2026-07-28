@@ -1,0 +1,4211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MONITOR — Command Center</title>
+
+<!-- ===== CDN LIBRARIES ===== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<style>
+/* ============================================================
+   MONITOR — Complete Command Center Interface
+   ============================================================ */
+
+/* ---------- RESET & BASE ---------- */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #070B11;
+  --bg-base: #0F1319;
+  --bg-panel: #171D26;
+  --bg-panel-raised: #1D2530;
+  --bg-card: #1A222E;
+  --line: #262F3C;
+  --line-bright: #37455A;
+  --text-hi: #E7ECF3;
+  --text-mid: #9AA7B8;
+  --text-dim: #5C6A7E;
+  --ok: #5FD9A4;
+  --ok-dim: #1A3A2C;
+  --warn: #F0B75E;
+  --warn-dim: #3A2E1A;
+  --crit: #F0645F;
+  --crit-dim: #3A1E1A;
+  --info: #6FA8E0;
+  --info-dim: #1A2A3A;
+  --grafana: #F0645F;
+  --prometheus: #F0B75E;
+  --nginx: #6FA8E0;
+  --docker: #1D7AC4;
+  --wazuh: #1EA8A0;
+  --loki: #7A4B9A;
+  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --sans: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg-deep);
+  color: var(--text-hi);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+input, button, textarea, select { font-family: inherit; }
+
+::selection { background: rgba(111,168,224,0.3); color: var(--text-hi); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--line-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ---------- UTILITY ---------- */
+.hidden { display: none !important; }
+.text-mono { font-family: var(--mono); }
+.text-dim { color: var(--text-dim); }
+.text-ok { color: var(--ok); }
+.text-warn { color: var(--warn); }
+.text-crit { color: var(--crit); }
+.text-info { color: var(--info); }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 16px; }
+.flex { display: flex; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+.grid { display: grid; }
+
+/* ============================================================
+   SECTION 1 — LOGIN PAGE
+   ============================================================ */
+/* ---------- LOGIN: Cinematic Command Center ---------- */
+#login-page {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-deep);
+  overflow: hidden;
+}
+
+#login-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 25%, rgba(111,168,224,0.10) 0%, transparent 45%),
+    radial-gradient(circle at 85% 75%, rgba(95,217,164,0.06) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(7,11,17,1) 0%, transparent 100%);
+}
+
+#login-page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(38,47,60,0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(38,47,60,0.15) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  animation: loginGridScroll 8s linear infinite;
+}
+
+@keyframes loginGridScroll {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(60px, 60px); }
+}
+
+#login-page.hidden { display: none; }
+
+.login-container {
+  position: relative;
+  z-index: 1;
+  background: rgba(23,29,38,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 48px 40px 40px;
+  width: 400px;
+  max-width: 90vw;
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+  animation: loginFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes loginFadeIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: -1px; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ok), transparent);
+  opacity: 0.6;
+}
+
+.login-logo {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-align: center;
+  margin-bottom: 4px;
+  position: relative;
+}
+
+.login-logo .brand-mark {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: var(--ok);
+  border-radius: 50%;
+  margin-right: 6px;
+  box-shadow: 0 0 12px var(--ok);
+  vertical-align: middle;
+  animation: brandPulse 2s ease-in-out infinite;
+}
+
+@keyframes brandPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--ok); opacity: 1; }
+  50% { box-shadow: 0 0 20px var(--ok), 0 0 40px rgba(95,217,164,0.3); opacity: 0.8; }
+}
+
+.login-logo span { color: var(--ok); }
+
+.login-subtitle {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-bottom: 32px;
+  font-family: var(--mono);
+  letter-spacing: 0.08em;
+  min-height: 20px;
+}
+
+.login-subtitle .cursor {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background: var(--ok);
+  margin-left: 2px;
+  animation: cursorBlink 0.8s step-end infinite;
+  vertical-align: middle;
+}
+
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.login-error {
+  background: var(--crit-dim);
+  border: 1px solid rgba(240,100,95,0.3);
+  color: var(--crit);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-bottom: 16px;
+  display: none;
+  position: relative;
+  padding-left: 36px;
+}
+
+.login-error::before {
+  content: '!';
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--crit);
+  color: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.login-error.show { display: block; animation: shake 0.3s ease; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.form-group label i {
+  margin-right: 6px;
+  font-size: 10px;
+  width: 14px;
+  text-align: center;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-base);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--text-hi);
+  font-size: 14px;
+  transition: all var(--transition);
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--info);
+  box-shadow: 0 0 0 3px rgba(111,168,224,0.15), inset 0 0 0 1px rgba(111,168,224,0.1);
+}
+
+.form-group input::placeholder { color: var(--text-dim); opacity: 0.4; }
+
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text-hi);
+  -webkit-box-shadow: 0 0 0 30px var(--bg-base) inset;
+  caret-color: var(--text-hi);
+}
+
+.btn-login {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--info), var(--prometheus));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--bg-deep);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: all var(--transition);
+  margin-top: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-login::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.1));
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.btn-login:hover::after { opacity: 1; }
+
+.btn-login:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(111,168,224,0.25);
+}
+
+.btn-login:active { transform: translateY(0); }
+
+.btn-login .btn-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-login .btn-icon {
+  font-size: 14px;
+  opacity: 0.7;
+  transition: transform var(--transition);
+}
+
+.btn-login:hover .btn-icon {
+  transform: translateX(4px);
+  opacity: 1;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.login-footer kbd {
+  background: var(--bg-base);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  font-size: 10px;
+  color: var(--text-mid);
+  font-family: var(--mono);
+}
+
+/* ============================================================
+   SECTION 2 — 3D INTRO: SYSTEM INITIALIZATION
+   ============================================================ */
+#intro-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--bg-deep);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#intro-overlay.active { display: flex; animation: introFadeIn 0.6s ease; }
+
+@keyframes introFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+#intro-overlay.fade-out {
+  opacity: 0;
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  transform: scale(1.05);
+  pointer-events: none;
+}
+
+#three-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+
+/* Scan line overlay */
+#intro-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+}
+
+/* Intro HUD overlay */
+.intro-hud {
+  position: absolute;
+  z-index: 10;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+.intro-hud-corner {
+  position: absolute;
+  width: 30px; height: 30px;
+  border-color: var(--ok);
+  opacity: 0.3;
+}
+
+.intro-hud-corner.tl { top: 30px; left: 30px; border-top: 1px solid; border-left: 1px solid; }
+.intro-hud-corner.tr { top: 30px; right: 30px; border-top: 1px solid; border-right: 1px solid; }
+.intro-hud-corner.bl { bottom: 30px; left: 30px; border-bottom: 1px solid; border-left: 1px solid; }
+.intro-hud-corner.br { bottom: 30px; right: 30px; border-bottom: 1px solid; border-right: 1px solid; }
+
+/* Title */
+.intro-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  animation: titleReveal 0.8s ease 0.3s forwards;
+}
+
+@keyframes titleReveal {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.intro-title .sys-name {
+  font-family: var(--mono);
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--text-hi);
+  text-shadow: 0 0 40px rgba(95,217,164,0.15);
+}
+
+.intro-title .sys-name span { color: var(--ok); }
+
+.intro-title .sys-tagline {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-top: 12px;
+}
+
+/* Status feed */
+.intro-status {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  pointer-events: none;
+  width: 360px;
+  max-width: 80vw;
+}
+
+.intro-status-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  padding: 3px 0;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.3s ease;
+}
+
+.intro-status-line.visible { opacity: 1; }
+
+.intro-status-line .status-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.intro-status-line .status-dot.ok { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.intro-status-line .status-dot.info { background: var(--info); box-shadow: 0 0 6px var(--info); }
+.intro-status-line .status-dot.warn { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+
+.intro-status-line .status-msg {
+  flex: 1;
+}
+
+.intro-status-line .status-time {
+  color: var(--text-dim);
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+.intro-skip {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(23,29,38,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  padding: 8px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.05em;
+  pointer-events: all;
+  opacity: 0;
+  animation: skipReveal 0.5s ease 5s forwards;
+}
+
+@keyframes skipReveal {
+  to { opacity: 1; }
+}
+
+.intro-skip:hover {
+  color: var(--text-hi);
+  border-color: var(--line-bright);
+  background: rgba(23,29,38,0.8);
+}
+
+/* ============================================================
+   SECTION 3 — MAIN APP
+   ============================================================ */
+#app {
+  display: none;
+  min-height: 100vh;
+  background: var(--bg-base);
+}
+
+#app.active { display: flex; }
+
+/* ---------- SIDEBAR ---------- */
+.sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 50;
+  transition: transform var(--transition);
+}
+
+.sidebar-brand {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-brand .icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--nginx), var(--grafana));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--bg-deep);
+}
+
+.sidebar-brand .text {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+}
+
+.sidebar-brand .text span { color: var(--ok); }
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 10px;
+  overflow-y: auto;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: all var(--transition);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  text-decoration: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.nav-item i {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.nav-item:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-hi);
+}
+
+.nav-item.active {
+  background: rgba(111,168,224,0.1);
+  color: var(--info);
+  border-left: 3px solid var(--info);
+}
+
+.nav-item .badge {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--ok-dim);
+  color: var(--ok);
+}
+
+.sidebar-footer {
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-footer .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ---------- MAIN CONTENT ---------- */
+.main-content {
+  flex: 1;
+  margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(23,29,38,0.6);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  gap: 16px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-mid);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.topbar-page-title {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+}
+
+.topbar-page-title .dim { color: var(--text-dim); font-weight: 400; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-clock {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-mid);
+  letter-spacing: 0.05em;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-mid);
+  padding: 6px 12px;
+  background: var(--bg-panel-raised);
+  border-radius: 20px;
+  border: 1px solid var(--line);
+}
+
+.topbar-user .avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--info), var(--prometheus));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bg-deep);
+}
+
+.btn-logout {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  transition: all var(--transition);
+}
+
+.btn-logout:hover {
+  border-color: var(--crit);
+  color: var(--crit);
+  background: var(--crit-dim);
+}
+
+/* ---------- PAGE CONTAINER ---------- */
+.page {
+  display: none;
+  padding: 24px 28px 40px;
+  animation: pageIn 0.4s ease;
+}
+
+.page.active { display: block; }
+
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- SECTION HEADERS ---------- */
+.section-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* ============================================================
+   PAGE: DASHBOARD
+   ============================================================ */
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  transition: border-color var(--transition), transform var(--transition);
+  cursor: default;
+}
+
+.stat-card:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-2px);
+}
+
+.stat-card .stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.stat-card .stat-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.stat-card .stat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.stat-card .stat-value {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.stat-card .stat-value small {
+  font-size: 13px;
+  color: var(--text-mid);
+  font-weight: 500;
+}
+
+.stat-card .stat-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.stat-card .stat-sub.up { color: var(--ok); }
+.stat-card .stat-sub.down { color: var(--crit); }
+
+/* Charts Row */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.chart-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+}
+
+.chart-panel .panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.chart-panel .panel-title {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+}
+
+.chart-panel .panel-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.chart-wrap { position: relative; width: 100%; height: 160px; }
+
+/* App Launcher */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.app-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.app-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--transition);
+  border-radius: var(--radius);
+}
+
+.app-card:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+.app-card:active { transform: translateY(-1px); }
+
+.app-card .app-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--mono);
+  position: relative;
+  transition: transform var(--transition);
+}
+
+.app-card:hover .app-icon { transform: scale(1.1); }
+
+.app-card .app-name {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.app-card .app-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.app-card .app-status {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.app-card .app-status.online { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.app-card .app-status.offline { background: var(--crit); box-shadow: 0 0 8px var(--crit); }
+.app-card .app-status.probing { background: var(--warn); animation: pulse 1s infinite; }
+
+.app-card.grafana { --app-color: var(--grafana); }
+.app-card.prometheus { --app-color: var(--prometheus); }
+.app-card.nginx { --app-color: var(--nginx); }
+.app-card.docker { --app-color: var(--docker); }
+
+.app-card .app-icon { background: rgba(var(--app-color), 0.1); color: var(--app-color); border: 1px solid rgba(var(--app-color), 0.2); }
+
+/* Alert Feed */
+.alert-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.alert-panel .alert-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alert-feed {
+  height: 200px;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.alert-row {
+  display: flex;
+  gap: 12px;
+  padding: 7px 20px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  border-left: 2px solid transparent;
+  animation: alertIn 0.3s ease;
+}
+
+@keyframes alertIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.alert-row .t { color: var(--text-dim); min-width: 58px; }
+.alert-row .lvl { min-width: 40px; font-weight: 700; }
+.alert-row.INFO { }
+.alert-row.INFO .lvl { color: var(--info); }
+.alert-row.WARN { border-left-color: var(--warn); }
+.alert-row.WARN .lvl { color: var(--warn); }
+.alert-row.CRIT { border-left-color: var(--crit); }
+.alert-row.CRIT .lvl { color: var(--crit); }
+.alert-row .msg { color: var(--text-mid); }
+
+/* ============================================================
+   PAGE: APPS (App Launcher Page)
+   ============================================================ */
+.apps-grid-large {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.app-card-large {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.app-card-large:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+}
+
+.app-card-large .app-icon-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--mono);
+  margin-bottom: 16px;
+}
+
+.app-card-large .app-name-lg {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.app-card-large .app-desc-lg {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.app-card-large .app-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-mid);
+  display: flex;
+  gap: 12px;
+}
+
+.app-card-large .btn-launch {
+  margin-top: 14px;
+  padding: 8px 20px;
+  border: 1px solid var(--line-bright);
+  background: var(--bg-panel-raised);
+  color: var(--text-hi);
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.app-card-large .btn-launch:hover {
+  background: var(--info-dim);
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.btn-registry-open:hover {
+  background: rgba(95,217,164,0.1) !important;
+  border-color: var(--ok) !important;
+  color: var(--ok) !important;
+}
+
+.app-card-large.grafana-card { --accent: var(--grafana); }
+.app-card-large.prometheus-card { --accent: var(--prometheus); }
+.app-card-large.nginx-card { --accent: var(--nginx); }
+.app-card-large.docker-card { --accent: var(--docker); }
+.app-card-large.wazuh-card { --accent: var(--wazuh); }
+.app-card-large.loki-card { --accent: var(--loki); }
+.app-card-large.nodeexp-card { --accent: #6FA8E0; }
+
+.app-card-large .app-icon-lg { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent); }
+.app-card-large .btn-launch:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); border-color: var(--accent); color: var(--accent); }
+
+/* App status badge on cards */
+.app-card .reg-badge,
+.app-card-large .reg-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 9px;
+  font-family: var(--mono);
+  padding: 2px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.05em;
+  z-index: 2;
+  pointer-events: none;
+}
+.app-card .reg-badge.reg-yes,
+.app-card-large .reg-badge.reg-yes {
+  background: rgba(95,217,164,0.15);
+  color: var(--ok);
+  border: 1px solid rgba(95,217,164,0.3);
+}
+.app-card .reg-badge.reg-no,
+.app-card-large .reg-badge.reg-no {
+  background: rgba(240,183,94,0.1);
+  color: var(--warn);
+  border: 1px solid rgba(240,183,94,0.2);
+}
+.app-card-large { position: relative; }
+
+/* ============================================================
+   APP REGISTRY MODAL
+   ============================================================ */
+.registry-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(7,11,17,0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  animation: registryFadeIn 0.3s ease;
+}
+.registry-overlay.open { display: flex; }
+@keyframes registryFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.registry-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  width: 680px;
+  max-width: 94vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  animation: registrySlideIn 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes registrySlideIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.registry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.registry-header h2 {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.registry-header h2 i { color: var(--ok); margin-right: 10px; }
+.registry-close {
+  width: 32px; height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.registry-close:hover {
+  background: rgba(240,100,95,0.1);
+  color: var(--crit);
+  border-color: rgba(240,100,95,0.3);
+}
+.registry-body { padding: 20px 28px 28px; }
+.registry-desc {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.registry-global {
+  background: var(--bg-base);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.registry-global label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.registry-global input {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text-hi);
+  font-size: 13px;
+  outline: none;
+  font-family: var(--mono);
+}
+.registry-global input:focus {
+  border-color: var(--info);
+  box-shadow: 0 0 0 2px rgba(111,168,224,0.15);
+}
+.registry-list { display: flex; flex-direction: column; gap: 10px; }
+.registry-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-base);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  transition: all var(--transition);
+}
+.registry-item:hover { border-color: var(--line-hi); }
+.registry-item .reg-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.registry-item .reg-info {
+  flex: 1;
+  min-width: 0;
+}
+.registry-item .reg-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+.registry-item .reg-url {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.registry-item .reg-url i { margin-right: 4px; }
+.registry-item .reg-email {
+  width: 200px;
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text-hi);
+  font-size: 12px;
+  outline: none;
+  font-family: var(--mono);
+}
+.registry-item .reg-email:focus {
+  border-color: var(--info);
+  box-shadow: 0 0 0 2px rgba(111,168,224,0.15);
+}
+.registry-item .reg-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--mono);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.registry-item .reg-status .stat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.registry-item .reg-status .stat-dot.online { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+.registry-item .reg-status .stat-dot.offline { background: var(--crit); }
+.registry-item .reg-status .stat-dot.probing { background: var(--warn); animation: pulse 1s infinite; }
+.registry-item .reg-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.registry-item .reg-btn.reg-do {
+  background: rgba(95,217,164,0.15);
+  color: var(--ok);
+  border: 1px solid rgba(95,217,164,0.3);
+}
+.registry-item .reg-btn.reg-do:hover {
+  background: var(--ok);
+  color: var(--bg-deep);
+}
+.registry-item .reg-btn.reg-un {
+  background: rgba(240,100,95,0.1);
+  color: var(--crit);
+  border: 1px solid rgba(240,100,95,0.2);
+}
+.registry-item .reg-btn.reg-un:hover {
+  background: rgba(240,100,95,0.2);
+}
+.registry-footer {
+  padding: 16px 28px 24px;
+  border-top: 1px solid var(--line);
+  text-align: right;
+}
+.registry-footer .btn-reg-save {
+  padding: 10px 28px;
+  background: var(--ok);
+  border: none;
+  border-radius: 8px;
+  color: var(--bg-deep);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.registry-footer .btn-reg-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(95,217,164,0.3);
+}
+
+/* ============================================================
+   PAGE: SETTINGS / EXPLAIN
+   ============================================================ */
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px;
+  overflow-x: auto;
+}
+
+.settings-tab {
+  padding: 10px 18px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.settings-tab:hover { color: var(--text-mid); background: rgba(255,255,255,0.03); }
+.settings-tab.active { color: var(--text-hi); background: var(--bg-panel-raised); }
+
+.settings-panel {
+  display: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 28px;
+  animation: pageIn 0.3s ease;
+}
+
+.settings-panel.active { display: block; }
+
+.settings-panel h2 {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-panel h2 .icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.settings-panel .tagline {
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 20px;
+}
+
+.settings-panel .desc-section {
+  margin-bottom: 20px;
+}
+
+.settings-panel .desc-section h3 {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.settings-panel .desc-section p {
+  font-size: 13px;
+  color: var(--text-mid);
+  line-height: 1.7;
+}
+
+.settings-panel .util-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.util-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-base);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
+.util-item .util-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.util-item .util-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.util-item .util-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.settings-panel .port-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-top: 12px;
+}
+
+.settings-panel .port-table th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.settings-panel .port-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-mid);
+}
+
+.settings-panel .port-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* ============================================================
+   PAGE: WEEK TRACKER
+   ============================================================ */
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.week-day {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 12px;
+  text-align: center;
+  transition: border-color var(--transition);
+}
+
+.week-day:hover { border-color: var(--line-bright); }
+
+.week-day .day-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.week-day .day-date {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.week-day .day-bar {
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.week-day .bar-segment {
+  border-radius: 2px;
+  transition: height 0.6s ease;
+  min-height: 2px;
+}
+
+.week-day .bar-segment.ok { background: var(--ok); }
+.week-day .bar-segment.warn { background: var(--warn); }
+.week-day .bar-segment.crit { background: var(--crit); }
+.week-day .bar-segment.off { background: var(--line); }
+
+.week-day .day-stats {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.week-day .day-stats .up-pct { color: var(--ok); font-weight: 600; }
+.week-day.today { border-color: var(--info); box-shadow: 0 0 0 1px rgba(111,168,224,0.2); }
+
+/* Week summary */
+.week-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.summary-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.summary-card .s-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.summary-card .s-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.summary-card .s-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-mid);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   PAGE: NETWORK
+   ============================================================ */
+.network-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.net-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.net-card .net-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+
+.net-card .net-value {
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.net-card .net-value small { font-size: 13px; color: var(--text-mid); font-weight: 500; }
+
+.net-card .net-change {
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.net-card .net-change.up { color: var(--crit); }
+.net-card .net-change.down { color: var(--ok); }
+
+.interface-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.interface-table thead th {
+  text-align: left;
+  padding: 12px 16px;
+  color: var(--text-dim);
+  font-weight: 500;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.interface-table tbody td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text-mid);
+}
+
+.interface-table tbody tr:last-child td { border-bottom: none; }
+.interface-table tbody tr:hover td { background: rgba(255,255,255,0.02); }
+
+.interface-table .if-name { color: var(--text-hi); font-weight: 600; }
+.interface-table .if-status { display: inline-flex; align-items: center; gap: 6px; }
+.interface-table .if-status .dot { width: 6px; height: 6px; border-radius: 50%; }
+.interface-table .if-status.up .dot { background: var(--ok); }
+.interface-table .if-status.down .dot { background: var(--crit); }
+
+/* ============================================================
+   PAGE: SECURITY
+   ============================================================ */
+.sec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.sec-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: border-color var(--transition), transform var(--transition);
+}
+
+.sec-card:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-2px);
+}
+
+.sec-card .sec-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.sec-card .sec-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.sec-card .sec-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.sec-card .sec-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sec-card .sec-tag {
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  background: var(--bg-base);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================
+   PAGE: CYBERSEC
+   ============================================================ */
+.cs-summary-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  text-align: center;
+  transition: border-color var(--transition), transform var(--transition);
+}
+.cs-summary-card:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-2px);
+}
+.cs-summary-card .cs-sum-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+.cs-summary-card .cs-sum-value {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.cs-summary-card .cs-sum-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 4px;
+}
+.cs-summary-card .cs-sum-sub {
+  font-size: 11px;
+  color: var(--text-mid);
+  margin-top: 6px;
+}
+.cs-pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.cs-pillar-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  border-left: 3px solid var(--text-dim);
+  transition: border-color var(--transition);
+}
+.cs-pillar-card:hover { border-color: var(--line-bright); }
+.cs-pillar-card .pillar-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.cs-pillar-card .pillar-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.cs-pillar-card .pillar-tools {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.cs-pillar-card .pillar-desc {
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.6;
+}
+.cs-matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+.cs-tool-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  border-top: 3px solid var(--text-dim);
+  transition: border-color var(--transition), transform var(--transition);
+}
+.cs-tool-card:hover {
+  border-color: var(--line-bright);
+  transform: translateY(-2px);
+}
+.cs-tool-card .cs-tool-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cs-tool-card .cs-tool-icon {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.cs-tool-card .cs-tool-name {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+}
+.cs-tool-card .cs-tool-port {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.cs-tool-card .cs-tool-section {
+  margin-bottom: 10px;
+}
+.cs-tool-card .cs-tool-section:last-child { margin-bottom: 0; }
+.cs-tool-card .cs-tool-section .cs-sec-label {
+  font-size: 10px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.cs-tool-card .cs-tool-section ul {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: var(--text-mid);
+  line-height: 1.7;
+}
+.cs-playbook {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+.cs-playbook-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: border-color var(--transition);
+}
+.cs-playbook-card:hover { border-color: var(--line-bright); }
+.cs-playbook-card .pb-title {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.cs-playbook-card .pb-severity {
+  display: inline-block;
+  font-size: 10px;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+.cs-playbook-card .pb-severity.critical { background: rgba(240,100,95,0.15); color: var(--crit); }
+.cs-playbook-card .pb-severity.high { background: rgba(240,183,94,0.15); color: var(--warn); }
+.cs-playbook-card .pb-severity.medium { background: rgba(111,168,224,0.15); color: var(--info); }
+.cs-playbook-card .pb-phase {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.cs-playbook-card .pb-phase:last-child { border-bottom: none; }
+.cs-playbook-card .pb-phase .pb-phase-icon {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.cs-playbook-card .pb-phase .pb-phase-icon.detect { background: rgba(240,100,95,0.15); color: var(--crit); }
+.cs-playbook-card .pb-phase .pb-phase-icon.investigate { background: rgba(111,168,224,0.15); color: var(--info); }
+.cs-playbook-card .pb-phase .pb-phase-icon.respond { background: rgba(95,217,164,0.15); color: var(--ok); }
+.cs-playbook-card .pb-phase .pb-phase-icon.prevent { background: rgba(240,183,94,0.15); color: var(--warn); }
+.cs-playbook-card .pb-phase .pb-phase-text { flex: 1; }
+.cs-playbook-card .pb-phase .pb-phase-text .pb-action {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+.cs-playbook-card .pb-phase .pb-phase-text .pb-detail {
+  color: var(--text-mid);
+  margin-top: 2px;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1100px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .app-grid { grid-template-columns: repeat(2, 1fr); }
+  .network-stats { grid-template-columns: 1fr; }
+  .week-grid { grid-template-columns: repeat(4, 1fr); }
+  .week-summary { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: 260px;
+    min-width: 260px;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0; }
+  .hamburger { display: block; }
+  .topbar { padding: 12px 16px; }
+  .page { padding: 16px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .charts-row { grid-template-columns: 1fr; }
+  .app-grid { grid-template-columns: 1fr 1fr; }
+  .week-grid { grid-template-columns: repeat(2, 1fr); }
+  .week-summary { grid-template-columns: 1fr; }
+  .util-list { grid-template-columns: 1fr; }
+  .settings-tabs { flex-wrap: nowrap; overflow-x: auto; }
+  .network-stats { grid-template-columns: 1fr; }
+  .login-container { padding: 32px 24px; }
+}
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .app-grid { grid-template-columns: 1fr; }
+  .week-grid { grid-template-columns: 1fr; }
+  .sidebar { width: 100%; min-width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: 2px;
+}
+</style>
+<style>
+/* ============================================================
+   3D INTRO SPECIFIC STYLES (Three.js overlay)
+   ============================================================ */
+#intro-overlay .intro-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#intro-overlay .intro-title {
+  font-family: var(--mono);
+  font-size: 72px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--text-hi);
+  text-shadow: 0 0 40px rgba(111,168,224,0.3);
+  opacity: 0;
+  transform: scale(0.8);
+  animation: titleReveal 1.2s ease 0.3s forwards;
+}
+
+@keyframes titleReveal {
+  to { opacity: 1; transform: scale(1); }
+}
+
+#intro-overlay .intro-title span { color: var(--ok); }
+
+#intro-overlay .intro-sub {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-dim);
+  letter-spacing: 0.3em;
+  margin-top: 8px;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 1s forwards;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.intro-badge-container {
+  position: absolute;
+  bottom: 160px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  gap: 24px;
+  opacity: 0;
+  animation: fadeUp 0.6s ease 1.3s forwards;
+}
+
+.intro-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-mid);
+  letter-spacing: 0.05em;
+}
+
+.intro-badge .badge-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+#intro-overlay .intro-version {
+  position: absolute;
+  top: 30px;
+  right: 40px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  z-index: 10;
+  letter-spacing: 0.05em;
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     SECTION 1: LOGIN PAGE
+     ============================================================ -->
+<div id="login-page">
+  <div class="login-container">
+    <div class="login-logo">
+      <span class="brand-mark"></span>
+      <span class="logo-text">M<span>ONITOR</span></span>
+    </div>
+    <div class="login-subtitle" id="typewriter">AUTHENTICATION REQUIRED<span class="cursor"></span></div>
+    <div class="login-error" id="login-error">Invalid credentials. Try <kbd>admin</kbd> / <kbd>admin</kbd></div>
+    <form id="login-form" autocomplete="off">
+      <div class="form-group">
+        <label><i class="fas fa-user"></i> Username</label>
+        <input type="text" id="username" placeholder="Enter username" value="admin" autofocus>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Password</label>
+        <input type="password" id="password" placeholder="Enter password" value="admin">
+      </div>
+      <div class="form-group" id="email-group">
+        <label><i class="fas fa-envelope"></i> Email <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0;">(for app registry)</span></label>
+        <input type="email" id="email-input" placeholder="you@example.com" value="admin@local.host">
+      </div>
+      <button type="submit" class="btn-login">
+        <span class="btn-text">
+          <span>ACCESS TERMINAL</span>
+          <span class="btn-icon"><i class="fas fa-arrow-right"></i></span>
+        </span>
+      </button>
+    </form>
+    <div class="login-footer">Default &middot; <kbd>admin</kbd> / <kbd>admin</kbd></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SECTION 2: 3D INTRO OVERLAY
+     ============================================================ -->
+<div id="intro-overlay">
+  <div id="three-container"></div>
+
+  <!-- HUD corners -->
+  <div class="intro-hud">
+    <div class="intro-hud-corner tl"></div>
+    <div class="intro-hud-corner tr"></div>
+    <div class="intro-hud-corner bl"></div>
+    <div class="intro-hud-corner br"></div>
+  </div>
+
+  <!-- Center title -->
+  <div class="intro-title">
+    <div class="sys-name">M<span>ONITOR</span></div>
+    <div class="sys-tagline">Infrastructure Command Center</div>
+  </div>
+
+  <!-- Status feed -->
+  <div class="intro-status" id="intro-status"></div>
+
+  <!-- Skip button -->
+  <div class="intro-skip" id="intro-skip">SKIP INTRO →</div>
+</div>
+
+<!-- ============================================================
+     SECTION 3: MAIN APP
+     ============================================================ -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="icon">M</div>
+      <div class="text">MONITOR<span>_</span></div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-page="dashboard">
+        <i class="fas fa-th-large"></i> Dashboard
+      </button>
+      <button class="nav-item" data-page="apps">
+        <i class="fas fa-rocket"></i> App Launcher
+      </button>
+      <button class="nav-item" data-page="network">
+        <i class="fas fa-network-wired"></i> Network
+      </button>
+      <button class="nav-item" data-page="week">
+        <i class="fas fa-calendar-week"></i> Week Tracker
+      </button>
+      <button class="nav-item" data-page="settings">
+        <i class="fas fa-cog"></i> Settings &amp; Explain
+      </button>
+      <button class="nav-item" data-page="cybersec">
+        <i class="fas fa-shield-halved"></i> CyberSec
+        <span class="badge">NEW</span>
+      </button>
+      <button class="nav-item" data-page="security">
+        <i class="fas fa-toolbox"></i> Security Tools
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <span>System Online</span>
+      <span class="status-dot"></span>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="main-content">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="hamburger" aria-label="Toggle sidebar">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="topbar-page-title">
+          <span id="page-title">Dashboard</span>
+          <span class="dim" id="page-subtitle">/ overview</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-clock" id="topbar-clock">--:--:--</div>
+        <div class="topbar-user">
+          <span class="avatar">A</span>
+          <span id="user-display">admin</span>
+        </div>
+        <button class="btn-logout" id="btn-logout" title="Logout">
+          <i class="fas fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- PAGE: DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="section-title">System Overview</div>
+
+      <div class="stats-grid" id="stats-grid"></div>
+
+      <div class="section-title">Live Metrics</div>
+      <div class="charts-row">
+        <div class="chart-panel">
+          <div class="panel-head">
+            <div class="panel-title">Request Rate — 60s Window</div>
+            <div class="panel-meta" id="req-current">— req/s</div>
+          </div>
+          <div class="chart-wrap"><canvas id="reqChart"></canvas></div>
+        </div>
+        <div class="chart-panel">
+          <div class="panel-head">
+            <div class="panel-title">p95 Latency</div>
+            <div class="panel-meta" id="lat-current">— ms</div>
+          </div>
+          <div class="chart-wrap"><canvas id="latChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section-title">Quick Launch</div>
+      <div class="app-grid" id="app-grid-dash"></div>
+
+      <div class="section-title">Alert Feed</div>
+      <div class="alert-panel">
+        <div class="alert-head">
+          <div class="panel-title">Prometheus Alertmanager</div>
+          <div class="panel-meta" id="alert-count">0 active</div>
+        </div>
+        <div class="alert-feed" id="alert-feed"></div>
+      </div>
+    </div>
+
+    <!-- PAGE: APPS -->
+    <div class="page" id="page-apps">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div class="section-title" style="margin-bottom:0;">App Launcher</div>
+          <p style="color:var(--text-mid);font-size:13px;margin:0;">
+            Click any app to open it in a new tab. Register your email for one-click auth.
+          </p>
+        </div>
+        <button class="btn-registry-open" id="btn-registry-open" style="padding:10px 20px;background:var(--bg-panel-raised);border:1px solid var(--line);border-radius:8px;color:var(--text-hi);font-family:var(--mono);font-size:12px;cursor:pointer;transition:all var(--transition);white-space:nowrap;display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-address-book" style="color:var(--ok);"></i> App Registry
+        </button>
+      </div>
+      <div class="apps-grid-large" id="apps-grid"></div>
+    </div>
+
+    <!-- PAGE: NETWORK -->
+    <div class="page" id="page-network">
+      <div class="section-title">Network Overview</div>
+      <div class="network-stats" id="net-stats"></div>
+      <div class="section-title">Active Interfaces</div>
+      <table class="interface-table" id="interface-table">
+        <thead>
+          <tr>
+            <th>Interface</th>
+            <th>IP Address</th>
+            <th>Status</th>
+            <th>Rx/s</th>
+            <th>Tx/s</th>
+            <th>Connections</th>
+          </tr>
+        </thead>
+        <tbody id="interface-body"></tbody>
+      </table>
+    </div>
+
+    <!-- PAGE: WEEK TRACKER -->
+    <div class="page" id="page-week">
+      <div class="section-title">7-Day Uptime Tracker</div>
+      <p style="color:var(--text-mid);font-size:13px;margin-bottom:16px;">
+        Daily uptime and health status across all monitored services.
+      </p>
+      <div class="week-grid" id="week-grid"></div>
+      <div class="section-title">Weekly Summary</div>
+      <div class="week-summary" id="week-summary"></div>
+    </div>
+
+    <!-- PAGE: SETTINGS & EXPLAIN -->
+    <div class="page" id="page-settings">
+      <div class="section-title">App Guide &amp; Configuration</div>
+      <p style="color:var(--text-mid);font-size:13px;margin-bottom:16px;">
+        Explore each service in your stack — what it does, why it matters, and how to use it.
+      </p>
+      <div class="settings-tabs" id="settings-tabs">
+        <button class="settings-tab active" data-tab="grafana">Grafana</button>
+        <button class="settings-tab" data-tab="prometheus">Prometheus</button>
+        <button class="settings-tab" data-tab="nginx">NGINX</button>
+        <button class="settings-tab" data-tab="docker">Docker</button>
+        <button class="settings-tab" data-tab="stack">Full Stack</button>
+      </div>
+
+      <!-- Grafana Tab -->
+      <div class="settings-panel active" id="panel-grafana">
+        <h2><span class="icon-box" style="background:rgba(240,100,95,0.15);color:var(--grafana);">G</span> Grafana</h2>
+        <div class="tagline">Observability &amp; visualization platform</div>
+        <div class="desc-section">
+          <h3>What It Does</h3>
+          <p>Grafana is your single pane of glass for all metrics. It connects to Prometheus, Loki, InfluxDB, and 100+ other data sources to build interactive dashboards for infrastructure, application performance, and business KPIs.</p>
+        </div>
+        <div class="desc-section">
+          <h3>Key Utilities</h3>
+          <div class="util-list">
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,100,95,0.15);color:var(--grafana);"><i class="fas fa-chart-line"></i></div>
+              <div><div class="util-name">Custom Dashboards</div><div class="util-desc">Build real-time visualizations for any metric</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,100,95,0.15);color:var(--grafana);"><i class="fas fa-bell"></i></div>
+              <div><div class="util-name">Alerting</div><div class="util-desc">Set threshold-based alerts via email, Slack, PagerDuty</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,100,95,0.15);color:var(--grafana);"><i class="fas fa-compass"></i></div>
+              <div><div class="util-name">Explore Mode</div><div class="util-desc">Ad-hoc querying across all data sources</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,100,95,0.15);color:var(--grafana);"><i class="fas fa-users"></i></div>
+              <div><div class="util-name">Team Collaboration</div><div class="util-desc">Share dashboards with annotated events</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="desc-section">
+          <h3>Access</h3>
+          <table class="port-table">
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>URL</td><td><a href="http://localhost:3000" target="_blank" style="color:var(--info);">http://localhost:3000</a></td></tr>
+            <tr><td>Username</td><td>admin</td></tr>
+            <tr><td>Password</td><td>admin</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Prometheus Tab -->
+      <div class="settings-panel" id="panel-prometheus">
+        <h2><span class="icon-box" style="background:rgba(240,183,94,0.15);color:var(--prometheus);">P</span> Prometheus</h2>
+        <div class="tagline">Metrics collection &amp; alerting toolkit</div>
+        <div class="desc-section">
+          <h3>What It Does</h3>
+          <p>Prometheus scrapes metrics from your services, stores them in a time-series database, and powers alerts based on query rules. It's the foundation of your monitoring stack — everything feeds into Prometheus first.</p>
+        </div>
+        <div class="desc-section">
+          <h3>Key Utilities</h3>
+          <div class="util-list">
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,183,94,0.15);color:var(--prometheus);"><i class="fas fa-database"></i></div>
+              <div><div class="util-name">Time-Series DB</div><div class="util-desc">Efficient storage for millions of data points</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,183,94,0.15);color:var(--prometheus);"><i class="fas fa-search"></i></div>
+              <div><div class="util-name">PromQL</div><div class="util-desc">Powerful query language for metric analysis</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,183,94,0.15);color:var(--prometheus);"><i class="fas fa-bell"></i></div>
+              <div><div class="util-name">Alerting Rules</div><div class="util-desc">Define conditions that trigger notifications</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(240,183,94,0.15);color:var(--prometheus);"><i class="fas fa-robot"></i></div>
+              <div><div class="util-name">Service Discovery</div><div class="util-desc">Auto-detect targets via Kubernetes, Consul, DNS</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="desc-section">
+          <h3>Access</h3>
+          <table class="port-table">
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>URL</td><td><a href="http://localhost:9090" target="_blank" style="color:var(--info);">http://localhost:9090</a></td></tr>
+            <tr><td>Port</td><td>9090</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- NGINX Tab -->
+      <div class="settings-panel" id="panel-nginx">
+        <h2><span class="icon-box" style="background:rgba(111,168,224,0.15);color:var(--nginx);">N</span> NGINX</h2>
+        <div class="tagline">Reverse proxy, load balancer &amp; web server</div>
+        <div class="desc-section">
+          <h3>What It Does</h3>
+          <p>NGINX sits at the front of your stack, routing traffic to the right services. It handles TLS termination, load balancing, rate limiting, caching, and serves as a reverse proxy for all your web applications.</p>
+        </div>
+        <div class="desc-section">
+          <h3>Key Utilities</h3>
+          <div class="util-list">
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(111,168,224,0.15);color:var(--nginx);"><i class="fas fa-arrows-split-up-and-left"></i></div>
+              <div><div class="util-name">Reverse Proxy</div><div class="util-desc">Route traffic to backend services</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(111,168,224,0.15);color:var(--nginx);"><i class="fas fa-scale-balanced"></i></div>
+              <div><div class="util-name">Load Balancing</div><div class="util-desc">Distribute requests across upstream servers</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(111,168,224,0.15);color:var(--nginx);"><i class="fas fa-lock"></i></div>
+              <div><div class="util-name">TLS Termination</div><div class="util-desc">Manage SSL certificates and HTTPS</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(111,168,224,0.15);color:var(--nginx);"><i class="fas fa-gauge-high"></i></div>
+              <div><div class="util-name">Rate Limiting</div><div class="util-desc">Protect against DDoS and abuse</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="desc-section">
+          <h3>Access</h3>
+          <table class="port-table">
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>URL</td><td><a href="http://localhost" target="_blank" style="color:var(--info);">http://localhost:80</a></td></tr>
+            <tr><td>Stub Status</td><td><a href="http://localhost/nginx-status" target="_blank" style="color:var(--info);">/nginx-status</a></td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Docker Tab -->
+      <div class="settings-panel" id="panel-docker">
+        <h2><span class="icon-box" style="background:rgba(29,122,196,0.15);color:var(--docker);">D</span> Docker</h2>
+        <div class="tagline">Container runtime &amp; orchestration</div>
+        <div class="desc-section">
+          <h3>What It Does</h3>
+          <p>Docker runs all your services in isolated containers. The entire monitoring stack — Grafana, Prometheus, NGINX — runs as containers managed through Docker Compose. It's the engine that powers everything.</p>
+        </div>
+        <div class="desc-section">
+          <h3>Key Utilities</h3>
+          <div class="util-list">
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(29,122,196,0.15);color:var(--docker);"><i class="fas fa-cubes"></i></div>
+              <div><div class="util-name">Container Management</div><div class="util-desc">Run, stop, restart any service independently</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(29,122,196,0.15);color:var(--docker);"><i class="fas fa-file-lines"></i></div>
+              <div><div class="util-name">Docker Compose</div><div class="util-desc">Declarative multi-container setup via YAML</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(29,122,196,0.15);color:var(--docker);"><i class="fas fa-network-wired"></i></div>
+              <div><div class="util-name">Networking</div><div class="util-desc">Internal Docker networks for service communication</div></div>
+            </div>
+            <div class="util-item">
+              <div class="util-icon" style="background:rgba(29,122,196,0.15);color:var(--docker);"><i class="fas fa-hard-drive"></i></div>
+              <div><div class="util-name">Volume Management</div><div class="util-desc">Persistent data storage for databases</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="desc-section">
+          <h3>Access</h3>
+          <table class="port-table">
+            <tr><th>Command</th><th>Description</th></tr>
+            <tr><td><kbd style="background:var(--bg-base);padding:2px 8px;border-radius:4px;color:var(--ok);">docker ps</kbd></td><td>List running containers</td></tr>
+            <tr><td><kbd style="background:var(--bg-base);padding:2px 8px;border-radius:4px;color:var(--ok);">docker logs &lt;name&gt;</kbd></td><td>View container logs</td></tr>
+            <tr><td><kbd style="background:var(--bg-base);padding:2px 8px;border-radius:4px;color:var(--ok);">docker compose up -d</kbd></td><td>Start all services</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Full Stack Tab -->
+      <div class="settings-panel" id="panel-stack">
+        <h2><span class="icon-box" style="background:rgba(95,217,164,0.15);color:var(--ok);"><i class="fas fa-cubes"></i></span> Complete Stack Architecture</h2>
+        <div class="tagline">How everything fits together</div>
+        <div class="desc-section">
+          <h3>Data Flow</h3>
+          <p><strong>NGINX</strong> → receives all HTTP traffic, proxies to backend services. Metrics exposed via stub_status endpoint.<br>
+          <strong>Prometheus</strong> → scrapes NGINX metrics, node exporters, and other targets every 15s. Stores in TSDB.<br>
+          <strong>Grafana</strong> → queries Prometheus (and other sources) to render dashboards. Sends alerts when thresholds breached.<br>
+          <strong>Docker</strong> → all services run as containers, managed via docker-compose.yml in <kbd style="background:var(--bg-base);padding:2px 6px;border-radius:4px;color:var(--ok);">~/docker/</kbd></p>
+        </div>
+        <div class="desc-section">
+          <h3>Port Map</h3>
+          <table class="port-table">
+            <tr><th>Service</th><th>Port</th><th>Container</th></tr>
+            <tr><td>Auth Gateway</td><td>8880</td><td>nginx:alpine</td></tr>
+            <tr><td>Grafana</td><td>3000</td><td>grafana/grafana:latest</td></tr>
+            <tr><td>Prometheus</td><td>9090</td><td>prom/prometheus:latest</td></tr>
+            <tr><td>NGINX</td><td>80 / 443</td><td>nginx:latest</td></tr>
+            <tr><td>Ollama</td><td>11434</td><td>ollama/ollama:latest</td></tr>
+          </table>
+        </div>
+        <div class="desc-section">
+          <h3>Suggested Additions</h3>
+          <p>Consider adding <strong>Loki</strong> (log aggregation), <strong>Tempo</strong> (tracing), <strong>Node Exporter</strong> (host metrics), <strong>cAdvisor</strong> (container metrics), and <strong>Alertmanager</strong> (alert routing) to complete the observability stack.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: CYBERSEC -->
+    <div class="page" id="page-cybersec">
+      <div class="section-title">Cyber Security Detection Center</div>
+      <p style="color:var(--text-mid);font-size:13px;margin-bottom:20px;">
+        How your monitoring stack detects, investigates, and responds to security threats across the entire infrastructure.
+      </p>
+
+      <!-- Overview Cards -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:24px;" id="cs-summary"></div>
+
+      <!-- Detection Pillars -->
+      <div class="section-title" style="font-size:14px;margin-bottom:12px;">🔍 Four Pillars of Detection</div>
+      <div class="cs-pillars" id="cs-pillars"></div>
+
+      <!-- Tool Security Matrix -->
+      <div class="section-title" style="font-size:14px;margin-bottom:12px;margin-top:28px;">🛠️ Tool Security Matrix</div>
+      <p style="color:var(--text-mid);font-size:12px;margin-bottom:16px;">
+        Every tool in your stack contributes to security. Below is how each one detects, prevents, or investigates threats.
+      </p>
+      <div class="cs-matrix" id="cs-matrix"></div>
+
+      <!-- Detection Playbook -->
+      <div class="section-title" style="font-size:14px;margin-bottom:12px;margin-top:28px;">📋 Detection Playbook</div>
+      <p style="color:var(--text-mid);font-size:12px;margin-bottom:16px;">
+        Common attack scenarios and how your stack catches them. Each playbook describes the kill chain and which tools detect each phase.
+      </p>
+      <div class="cs-playbook" id="cs-playbook"></div>
+    </div>
+
+    <!-- PAGE: SECURITY -->
+    <div class="page" id="page-security">
+      <div class="section-title">Cybersecurity Utilities</div>
+      <p style="color:var(--text-mid);font-size:13px;margin-bottom:16px;">
+        Recommended security tools to integrate into your monitoring stack. Each tool adds a critical layer of defense.
+      </p>
+      <div class="sec-grid" id="sec-grid"></div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /#app -->
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+// ==========================================================
+// 1. LOGIN SYSTEM
+// ==========================================================
+(function() {
+  const loginPage = document.getElementById('login-page');
+  const loginForm = document.getElementById('login-form');
+  const loginError = document.getElementById('login-error');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const emailInput = document.getElementById('email-input');
+  const userDisplay = document.getElementById('user-display');
+
+  // ─── Typewriter effect for subtitle ──────────────────────
+  (function typewriter() {
+    const el = document.getElementById('typewriter');
+    if (!el) return;
+    const fullText = el.textContent.replace(el.querySelector('.cursor')?.outerHTML || '', '').trim();
+    const cursor = el.querySelector('.cursor');
+    el.textContent = '';
+    if (cursor) el.appendChild(cursor);
+    let i = 0;
+    function tick() {
+      if (i < fullText.length) {
+        const char = document.createTextNode(fullText.charAt(i));
+        el.insertBefore(char, cursor || null);
+        i++;
+        setTimeout(tick, 30 + Math.random() * 20);
+      }
+    }
+    setTimeout(tick, 400);
+  })();
+
+  // ─── Registry helper ──────────────────────────────────────
+  function getRegistry() {
+    try { return JSON.parse(localStorage.getItem('monitor_registry')) || { email: '', apps: {} }; }
+    catch { return { email: '', apps: {} }; }
+  }
+  function saveRegistry(r) {
+    localStorage.setItem('monitor_registry', JSON.stringify(r));
+  }
+
+  // Track login state
+  let isLoggedIn = sessionStorage.getItem('monitor_logged_in') === 'true';
+  let loggedInUser = sessionStorage.getItem('monitor_user') || 'admin';
+
+  // Restore email from registry
+  const registry = getRegistry();
+  if (registry.email) {
+    emailInput.value = registry.email;
+  }
+
+  if (isLoggedIn) {
+    loginPage.classList.add('hidden');
+    userDisplay.textContent = loggedInUser;
+    initIntro();
+  } else {
+    loginPage.classList.remove('hidden');
+  }
+
+  loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const user = usernameInput.value.trim();
+    const pass = passwordInput.value.trim();
+    const email = emailInput.value.trim();
+
+    // Simple auth — extend with API call later
+    if ((user === 'admin' && pass === 'admin') ||
+        (user === 'monitor' && pass === 'monitor') ||
+        (user === 'demo' && pass === 'demo')) {
+      loginError.classList.remove('show');
+      sessionStorage.setItem('monitor_logged_in', 'true');
+      sessionStorage.setItem('monitor_user', user);
+      loggedInUser = user;
+      userDisplay.textContent = user;
+
+      // Save email to registry
+      if (email) {
+        const r = getRegistry();
+        r.email = email;
+        saveRegistry(r);
+        registry.email = email;
+      }
+
+      loginPage.classList.add('hidden');
+      initIntro();
+    } else {
+      loginError.classList.add('show');
+      usernameInput.focus();
+    }
+  });
+
+  // Logout
+  document.getElementById('btn-logout').addEventListener('click', function() {
+    sessionStorage.removeItem('monitor_logged_in');
+    sessionStorage.removeItem('monitor_user');
+    loginPage.classList.remove('hidden');
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('intro-overlay').classList.remove('active');
+    isLoggedIn = false;
+  });
+
+  // ==========================================================
+  // 2. 3D INTRO (Three.js)
+  // ==========================================================
+  function initIntro() {
+    const overlay = document.getElementById('intro-overlay');
+    overlay.classList.add('active');
+
+    // Show the app container (hidden behind overlay)
+    document.getElementById('app').classList.add('active');
+
+    // Init Three.js scene
+    const container = document.getElementById('three-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070B11);
+
+    const camera = new THREE.PerspectiveCamera(55, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 1.5, 10);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // ─── Central Core ──────────────────────────────────────────
+    const coreGeo = new THREE.SphereGeometry(0.6, 32, 32);
+    const coreMat = new THREE.MeshStandardMaterial({
+      color: 0x5FD9A4,
+      emissive: 0x5FD9A4,
+      emissiveIntensity: 0.4,
+      metalness: 0.6,
+      roughness: 0.2,
+    });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    scene.add(core);
+
+    // Core glow aura
+    const auraGeo = new THREE.SphereGeometry(0.9, 24, 24);
+    const auraMat = new THREE.MeshBasicMaterial({
+      color: 0x5FD9A4,
+      transparent: true,
+      opacity: 0.08,
+    });
+    const aura = new THREE.Mesh(auraGeo, auraMat);
+    scene.add(aura);
+
+    // ─── Lights ────────────────────────────────────────────────
+    const ambient = new THREE.AmbientLight(0x404060, 0.4);
+    scene.add(ambient);
+    const keyLight = new THREE.DirectionalLight(0x6FA8E0, 0.8);
+    keyLight.position.set(2, 3, 4);
+    scene.add(keyLight);
+    const coreLight = new THREE.PointLight(0x5FD9A4, 2, 15);
+    coreLight.position.set(0, 0, 0);
+    scene.add(coreLight);
+
+    // ─── Starfield ─────────────────────────────────────────────
+    const starCount = 3000;
+    const starGeo = new THREE.BufferGeometry();
+    const starPos = new Float32Array(starCount * 3);
+    const starSizes = new Float32Array(starCount);
+    const starColors = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 15 + Math.random() * 60;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      starPos[i * 3 + 1] = r * Math.cos(phi);
+      starPos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      starSizes[i] = 0.04 + Math.random() * 0.12;
+      const c = 0.4 + Math.random() * 0.6;
+      starColors[i * 3] = c * (0.8 + Math.random() * 0.2);
+      starColors[i * 3 + 1] = c * (0.8 + Math.random() * 0.2);
+      starColors[i * 3 + 2] = c;
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    starGeo.setAttribute('size', new THREE.BufferAttribute(starSizes, 1));
+    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+    const starMat = new THREE.PointsMaterial({
+      size: 0.08,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.8,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    // ─── Orbital Rings ─────────────────────────────────────────
+    function createRing(radius, tube, color, opacity, rotX, rotY, emissiveIntensity) {
+      const geo = new THREE.TorusGeometry(radius, tube, 32, 120);
+      const mat = new THREE.MeshStandardMaterial({
+        color: color,
+        emissive: color,
+        emissiveIntensity: emissiveIntensity || 0.1,
+        transparent: true,
+        opacity: opacity,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = rotX;
+      mesh.rotation.y = rotY || 0;
+      return mesh;
+    }
+
+    const rings = [
+      createRing(2.8, 0.015, 0x6FA8E0, 0.25, Math.PI / 3, 0, 0.15),
+      createRing(3.2, 0.02, 0x37455A, 0.3, -Math.PI / 4, Math.PI / 6, 0.05),
+      createRing(3.6, 0.01, 0x5FD9A4, 0.2, Math.PI / 2.5, -Math.PI / 4, 0.12),
+      createRing(2.4, 0.008, 0xF0B75E, 0.15, -Math.PI / 3, Math.PI / 3, 0.1),
+    ];
+    rings.forEach(r => scene.add(r));
+
+    // ─── Orbital Particles (data flow on rings) ────────────────
+    const particleCount = 400;
+    const partGeo = new THREE.BufferGeometry();
+    const partPos = new Float32Array(particleCount * 3);
+    const partData = [];
+    for (let i = 0; i < particleCount; i++) {
+      const ringIdx = Math.floor(Math.random() * rings.length);
+      const r = [2.8, 3.2, 3.6, 2.4][ringIdx];
+      const angle = Math.random() * Math.PI * 2;
+      const yOff = (Math.random() - 0.5) * 0.3;
+      partPos[i * 3] = Math.cos(angle) * r;
+      partPos[i * 3 + 1] = yOff;
+      partPos[i * 3 + 2] = Math.sin(angle) * r;
+      partData.push({ r, angle, speed: 0.3 + Math.random() * 0.4, ringIdx, yOff });
+    }
+    partGeo.setAttribute('position', new THREE.BufferAttribute(partPos, 3));
+    const partMat = new THREE.PointsMaterial({
+      color: 0x5FD9A4,
+      size: 0.04,
+      transparent: true,
+      opacity: 0.6,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const particles = new THREE.Points(partGeo, partMat);
+    scene.add(particles);
+
+    // ─── Connection Lines ──────────────────────────────────────
+    const lineGroup = new THREE.Group();
+    const connCount = 60;
+    const connLines = [];
+    for (let i = 0; i < connCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r1 = 0.6 + Math.random() * 0.3;
+      const r2 = 2 + Math.random() * 1.8;
+      const points = [
+        new THREE.Vector3(
+          r1 * Math.sin(phi) * Math.cos(theta),
+          r1 * Math.cos(phi),
+          r1 * Math.sin(phi) * Math.sin(theta)
+        ),
+        new THREE.Vector3(
+          r2 * Math.sin(phi) * Math.cos(theta),
+          r2 * Math.cos(phi),
+          r2 * Math.sin(phi) * Math.sin(theta)
+        ),
+      ];
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({
+        color: 0x37455A,
+        transparent: true,
+        opacity: 0.08 + Math.random() * 0.1,
+      });
+      const line = new THREE.Line(geo, mat);
+      lineGroup.add(line);
+      connLines.push({ line, speed: 0.1 + Math.random() * 0.2, phase: Math.random() * Math.PI * 2 });
+    }
+    scene.add(lineGroup);
+
+    // ─── Status Feed ───────────────────────────────────────────
+    const statusMessages = [
+      { msg: 'Initializing kernel modules...', dot: 'info', time: '00:00:01' },
+      { msg: 'Mounting data pipelines...', dot: 'info', time: '00:00:02' },
+      { msg: 'Grafana: connection established', dot: 'ok', time: '00:00:03' },
+      { msg: 'Prometheus: scraping targets...', dot: 'info', time: '00:00:04' },
+      { msg: 'NGINX: reverse proxy online', dot: 'ok', time: '00:00:05' },
+      { msg: 'Ollama: inference engine ready', dot: 'ok', time: '00:00:06' },
+      { msg: 'Docker: container runtime healthy', dot: 'ok', time: '00:00:07' },
+      { msg: 'Database connections: pooled (12/12)', dot: 'ok', time: '00:00:08' },
+      { msg: 'All systems nominal. Handoff ready.', dot: 'ok', time: '00:00:09' },
+    ];
+
+    const statusContainer = document.getElementById('intro-status');
+    let msgIdx = 0;
+
+    function showNextStatus() {
+      if (msgIdx >= statusMessages.length) return;
+      const s = statusMessages[msgIdx];
+      const el = document.createElement('div');
+      el.className = 'intro-status-line';
+      el.innerHTML = `
+        <span class="status-dot ${s.dot}"></span>
+        <span class="status-msg">${s.msg}</span>
+        <span class="status-time">${s.time}</span>
+      `;
+      statusContainer.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('visible'));
+      msgIdx++;
+      setTimeout(showNextStatus, 500 + Math.random() * 300);
+    }
+    setTimeout(showNextStatus, 600);
+
+    // ─── Animation ─────────────────────────────────────────────
+    let time = 0;
+    const clock = new THREE.Clock();
+    let skipIntro = false;
+
+    function animate() {
+      if (skipIntro) return;
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      time += delta;
+
+      // Core pulse
+      const pulse = 1 + Math.sin(time * 2) * 0.04;
+      core.scale.set(pulse, pulse, pulse);
+      const auraPulse = 1 + Math.sin(time * 1.5) * 0.06;
+      aura.scale.set(auraPulse, auraPulse, auraPulse);
+      auraMat.opacity = 0.06 + Math.sin(time * 1.5) * 0.03;
+      coreLight.intensity = 1.5 + Math.sin(time * 2) * 0.5;
+
+      // Rotate rings at different speeds
+      rings[0].rotation.z += delta * 0.4;
+      rings[0].rotation.x += delta * 0.05;
+      rings[1].rotation.z -= delta * 0.25;
+      rings[1].rotation.y += delta * 0.08;
+      rings[2].rotation.y += delta * 0.35;
+      rings[2].rotation.z += delta * 0.1;
+      rings[3].rotation.x -= delta * 0.3;
+      rings[3].rotation.z += delta * 0.15;
+
+      // Animate orbital particles
+      const pos = particles.geometry.attributes.position.array;
+      for (let i = 0; i < particleCount; i++) {
+        const d = partData[i];
+        d.angle += delta * d.speed;
+        const r = d.r;
+        pos[i * 3] = Math.cos(d.angle) * r;
+        pos[i * 3 + 1] = d.yOff + Math.sin(time * 0.5 + i) * 0.1;
+        pos[i * 3 + 2] = Math.sin(d.angle) * r;
+      }
+      particles.geometry.attributes.position.needsUpdate = true;
+
+      // Connection lines pulse
+      connLines.forEach((cl, i) => {
+        cl.line.material.opacity = 0.05 + Math.sin(time * cl.speed + cl.phase) * 0.05 + 0.05;
+      });
+
+      // Rotate starfield
+      stars.rotation.y += delta * 0.01;
+
+      // Camera orbit
+      const camAngle = time * 0.06;
+      camera.position.x = Math.sin(camAngle) * 10;
+      camera.position.z = Math.cos(camAngle) * 10;
+      camera.position.y = 1.5 + Math.sin(time * 0.03) * 0.3;
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // ─── Auto-dismiss ──────────────────────────────────────────
+    const autoDismiss = setTimeout(() => {
+      dismissIntro();
+    }, 7000);
+
+    // ─── Skip button ───────────────────────────────────────────
+    document.getElementById('intro-skip').addEventListener('click', function() {
+      clearTimeout(autoDismiss);
+      dismissIntro();
+    });
+
+    function dismissIntro() {
+      skipIntro = true;
+      overlay.classList.add('fade-out');
+      setTimeout(() => {
+        overlay.classList.remove('active');
+        overlay.classList.remove('fade-out');
+        setTimeout(() => {
+          renderer.dispose();
+          container.innerHTML = '';
+        }, 100);
+      }, 800);
+    }
+
+    // ─── Resize ────────────────────────────────────────────────
+    window.addEventListener('resize', function() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+  }
+})();
+
+// ==========================================================
+// 3. MAIN APPLICATION CONTROLLER
+// ==========================================================
+(function() {
+  // Wait for DOM ready (already at bottom)
+  const app = {
+    state: {
+      cpu: 34, mem: 58, disk: 71, net: 120,
+      rps: 842, targets: 14, panels: 27,
+      reqSeries: Array.from({length:40}, () => 700+Math.random()*300),
+      errSeries: Array.from({length:40}, () => Math.random()*20),
+      latSeries: Array.from({length:40}, () => 40+Math.random()*20),
+    },
+
+    // Chart instances
+    reqChart: null,
+    latChart: null,
+
+    init: function() {
+      this.initNavigation();
+      this.initDashboard();
+      this.initApps();
+      this.initNetwork();
+      this.initWeek();
+      this.initCyberSec();
+      this.initSecurity();
+      this.initClock();
+      this.initHamburger();
+    },
+
+    // ---- Navigation ----
+    initNavigation: function() {
+      const navItems = document.querySelectorAll('.nav-item[data-page]');
+      navItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const page = item.dataset.page;
+          this.switchPage(page);
+        });
+      });
+    },
+
+    switchPage: function(page) {
+      // Update nav
+      document.querySelectorAll('.nav-item[data-page]').forEach(n => n.classList.remove('active'));
+      document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+
+      // Update page
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      const pageEl = document.getElementById(`page-${page}`);
+      if (pageEl) pageEl.classList.add('active');
+
+      // Update title
+      const titles = {
+        dashboard: 'Dashboard',
+        apps: 'App Launcher',
+        network: 'Network',
+        week: 'Week Tracker',
+        settings: 'Settings',
+        cybersec: 'CyberSec',
+        security: 'Security Tools',
+      };
+      document.getElementById('page-title').textContent = titles[page] || page;
+      document.getElementById('page-subtitle').textContent = '/ ' + page;
+
+      // Close sidebar on mobile
+      if (window.innerWidth <= 768) {
+        document.getElementById('sidebar').classList.remove('open');
+      }
+
+      // Resize charts if dashboard
+      if (page === 'dashboard') {
+        setTimeout(() => {
+          if (this.reqChart) this.reqChart.resize();
+          if (this.latChart) this.latChart.resize();
+        }, 200);
+      }
+    },
+
+    // ---- Clock ----
+    initClock: function() {
+      const clock = document.getElementById('topbar-clock');
+      function tick() {
+        const d = new Date();
+        clock.textContent = d.toLocaleTimeString('en-US', { hour12: false }) + ' UTC';
+      }
+      tick();
+      setInterval(tick, 1000);
+    },
+
+    // ---- Hamburger ----
+    initHamburger: function() {
+      document.getElementById('hamburger').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+      });
+      // Close sidebar on outside click
+      document.addEventListener('click', (e) => {
+        const sidebar = document.getElementById('sidebar');
+        const hamburger = document.getElementById('hamburger');
+        if (window.innerWidth <= 768 &&
+            !sidebar.contains(e.target) &&
+            !hamburger.contains(e.target)) {
+          sidebar.classList.remove('open');
+        }
+      });
+    },
+
+    // ---- Utility ----
+    rw: function(val, min, max, jitter) {
+      val += (Math.random() - 0.5) * jitter;
+      return Math.max(min, Math.min(max, val));
+    },
+
+    // ==========================================================
+    // 4. DASHBOARD
+    // ==========================================================
+    initDashboard: function() {
+      this.initStats();
+      this.initCharts();
+      this.initAppGridDash();
+      this.initAlerts();
+
+      // Update loops
+      setInterval(() => this.updateStats(), 2200);
+      setInterval(() => this.updateCharts(), 1400);
+      setInterval(() => this.pushAlert(), 4000);
+    },
+
+    initStats: function() {
+      const stats = [
+        { key: 'cpu', label: 'CPU Load', icon: 'microchip', unit: '%', crit: 85, warn: 65, color: '#6FA8E0' },
+        { key: 'mem', label: 'Memory', icon: 'memory', unit: '%', crit: 90, warn: 75, color: '#F0B75E' },
+        { key: 'disk', label: 'Disk Usage', icon: 'hard-drive', unit: '%', crit: 90, warn: 80, color: '#5FD9A4' },
+        { key: 'net', label: 'Network I/O', icon: 'wifi', unit: ' Mb/s', crit: 900, warn: 600, color: '#F0645F' },
+      ];
+
+      const grid = document.getElementById('stats-grid');
+      grid.innerHTML = '';
+      stats.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'stat-card';
+        card.innerHTML = `
+          <div class="stat-top">
+            <span class="stat-label">${s.label}</span>
+            <span class="stat-icon" style="background:rgba(${parseInt(s.color.slice(1,3),16)},${parseInt(s.color.slice(3,5),16)},${parseInt(s.color.slice(5,7),16)},0.15);color:${s.color}">
+              <i class="fas fa-${s.icon}"></i>
+            </span>
+          </div>
+          <div class="stat-value" id="dash-val-${s.key}">—<small>${s.unit}</small></div>
+          <div class="stat-sub" id="dash-sub-${s.key}">initializing...</div>
+        `;
+        card.dataset.crit = s.crit;
+        card.dataset.warn = s.warn;
+        card.dataset.key = s.key;
+        grid.appendChild(card);
+      });
+      this.updateStats();
+    },
+
+    updateStats: function() {
+      const s = this.state;
+      s.cpu = this.rw(s.cpu, 8, 96, 6);
+      s.mem = this.rw(s.mem, 20, 96, 3);
+      s.disk = this.rw(s.disk, 60, 92, 0.4);
+      s.net = this.rw(s.net, 20, 950, 60);
+
+      const stats = [
+        { key: 'cpu', val: s.cpu, unit: '%' },
+        { key: 'mem', val: s.mem, unit: '%' },
+        { key: 'disk', val: s.disk, unit: '%' },
+        { key: 'net', val: s.net, unit: ' Mb/s' },
+      ];
+
+      stats.forEach(st => {
+        const valEl = document.getElementById(`dash-val-${st.key}`);
+        const subEl = document.getElementById(`dash-sub-${st.key}`);
+        if (!valEl || !subEl) return;
+
+        const prev = parseFloat(valEl.dataset.prev || st.val);
+        const display = st.key === 'net' ? st.val.toFixed(0) : st.val.toFixed(1);
+        valEl.innerHTML = display + `<small>${st.unit}</small>`;
+        valEl.dataset.prev = st.val;
+
+        const delta = st.val - prev;
+        const direction = delta >= 0 ? '▲' : '▼';
+        subEl.textContent = `${direction} ${Math.abs(delta).toFixed(1)}${st.unit} vs last tick`;
+        subEl.className = 'stat-sub ' + (delta > 0 ? 'up' : 'down');
+      });
+
+      // Pipeline metrics
+      document.getElementById('req-current').textContent = Math.round(s.rps) + ' req/s';
+      s.rps = this.rw(s.rps, 400, 1400, 90);
+    },
+
+    initCharts: function() {
+      // Request rate chart
+      const reqCtx = document.getElementById('reqChart').getContext('2d');
+      this.reqChart = new Chart(reqCtx, {
+        type: 'line',
+        data: {
+          labels: Array.from({length:40}, (_,i) => i),
+          datasets: [
+            {
+              label: 'Requests',
+              data: this.state.reqSeries,
+              borderColor: '#6FA8E0',
+              backgroundColor: 'rgba(111,168,224,0.08)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 2,
+            },
+            {
+              label: 'Errors',
+              data: this.state.errSeries,
+              borderColor: '#F0645F',
+              backgroundColor: 'rgba(240,100,95,0.05)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 1.5,
+              yAxisID: 'y1',
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: true, grid: { color: 'rgba(38,47,60,0.5)' }, ticks: { color: '#5C6A7E', font: { size: 10 } } },
+            y1: { display: false, position: 'right', grid: { drawOnChartArea: false } },
+          },
+          animation: { duration: 300 },
+        },
+      });
+
+      // Latency chart
+      const latCtx = document.getElementById('latChart').getContext('2d');
+      this.latChart = new Chart(latCtx, {
+        type: 'line',
+        data: {
+          labels: Array.from({length:40}, (_,i) => i),
+          datasets: [
+            {
+              label: 'p95 Latency',
+              data: this.state.latSeries,
+              borderColor: '#F0B75E',
+              backgroundColor: 'rgba(240,183,94,0.08)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { display: false },
+            y: { display: true, grid: { color: 'rgba(38,47,60,0.5)' }, ticks: { color: '#5C6A7E', font: { size: 10 } } },
+          },
+          animation: { duration: 300 },
+        },
+      });
+    },
+
+    updateCharts: function() {
+      const s = this.state;
+      s.reqSeries.shift(); s.reqSeries.push(this.rw(s.reqSeries.at(-1), 400, 1400, 90));
+      s.errSeries.shift(); s.errSeries.push(this.rw(s.errSeries.at(-1), 0, 60, 8));
+      s.latSeries.shift(); s.latSeries.push(this.rw(s.latSeries.at(-1), 20, 120, 10));
+
+      if (this.reqChart) {
+        this.reqChart.data.datasets[0].data = s.reqSeries;
+        this.reqChart.data.datasets[1].data = s.errSeries;
+        this.reqChart.update('none');
+      }
+      if (this.latChart) {
+        this.latChart.data.datasets[0].data = s.latSeries;
+        this.latChart.update('none');
+      }
+
+      document.getElementById('req-current').textContent = Math.round(s.reqSeries.at(-1)) + ' req/s';
+      document.getElementById('lat-current').textContent = Math.round(s.latSeries.at(-1)) + ' ms';
+    },
+
+    initAppGridDash: function() {
+      const apps = AppRegistry.APP_LIST;
+
+      const grid = document.getElementById('app-grid-dash');
+      grid.innerHTML = '';
+      apps.forEach(a => {
+        const card = document.createElement('div');
+        card.className = `app-card ${a.id}`;
+        const bgRGB = `${parseInt(a.color.slice(1,3),16)},${parseInt(a.color.slice(3,5),16)},${parseInt(a.color.slice(5,7),16)}`;
+        card.innerHTML = `
+          <span class="app-status" id="dash-status-${a.id}"></span>
+          <span class="reg-badge reg-no" id="dash-badge-${a.id}">○ Register</span>
+          <div class="app-icon" style="background:rgba(${bgRGB},0.15);color:${a.color};border:1px solid rgba(${bgRGB},0.3);">${a.icon}</div>
+          <div class="app-name">${a.name}</div>
+          <div class="app-desc">${a.desc}</div>
+        `;
+        card.addEventListener('click', () => {
+          const appEmail = AppRegistry.getAppEmail(a.id);
+          const isRegd = AppRegistry.isRegistered(a.id);
+          let url = a.url;
+          // Pass email as query param hint
+          if (appEmail) {
+            const sep = url.includes('?') ? '&' : '?';
+            url += `${sep}_email=${encodeURIComponent(appEmail)}`;
+          }
+          window.open(url, '_blank');
+        });
+        grid.appendChild(card);
+
+        // Probe status
+        AppRegistry.probeStatus(a.id, a.url).then(status => {
+          const dot = document.getElementById(`dash-status-${a.id}`);
+          if (dot) {
+            dot.className = `app-status ${status}`;
+          }
+        });
+
+        // Registration badge
+        const regd = AppRegistry.isRegistered(a.id);
+        const badge = document.getElementById(`dash-badge-${a.id}`);
+        if (badge) {
+          badge.textContent = regd ? '✓ Registered' : '○ Register';
+          badge.className = `reg-badge ${regd ? 'reg-yes' : 'reg-no'}`;
+        }
+      });
+    },
+
+    initAlerts: function() {
+      this.alertPool = [
+        ['INFO', 'nginx', 'reload succeeded, new config applied'],
+        ['INFO', 'prometheus', 'scrape of target web-02 completed in 12ms'],
+        ['WARN', 'prometheus', 'target web-03.internal scrape latency > 500ms'],
+        ['WARN', 'nginx', 'upstream web-03.internal response time elevated'],
+        ['CRIT', 'alertmanager', 'HighErrorRate firing: 5xx ratio above 5% for 2m'],
+        ['INFO', 'grafana', 'dashboard "cluster-overview" refreshed'],
+        ['WARN', 'node-exporter', 'disk usage on /var above 80%'],
+        ['INFO', 'docker', 'container grafana restarted in 1.2s'],
+        ['CRIT', 'prometheus', 'target node-exporter:9100 unreachable'],
+        ['INFO', 'system', 'scheduled backup completed successfully'],
+      ];
+      this.activeAlerts = 0;
+      // Seed some alerts
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => this.pushAlert(), i * 200);
+      }
+      document.getElementById('alert-count').textContent = '0 active';
+    },
+
+    pushAlert: function() {
+      const pool = this.alertPool;
+      const [lvl, src, msg] = pool[Math.floor(Math.random() * pool.length)];
+      const feed = document.getElementById('alert-feed');
+      const row = document.createElement('div');
+      row.className = 'alert-row ' + lvl;
+      const t = new Date().toUTCString().slice(17, 25);
+      row.innerHTML = `<span class="t">${t}</span><span class="lvl">${lvl}</span><span class="msg"><b style="color:var(--text-hi)">${src}</b> — ${msg}</span>`;
+      feed.prepend(row);
+      if (feed.children.length > 40) feed.removeChild(feed.lastChild);
+      if (lvl !== 'INFO') {
+        this.activeAlerts = Math.min(this.activeAlerts + 1, 99);
+        document.getElementById('alert-count').textContent = this.activeAlerts + ' active';
+      }
+    },
+
+    // ==========================================================
+    // 5. APP LAUNCHER PAGE
+    // ==========================================================
+    initApps: function() {
+      const apps = [
+        { id: 'grafana',    name: 'Grafana',    desc: 'Full observability and dashboarding platform. Query, visualize, alert on metrics from any data source.',                        icon: 'G', color: '#F0645F', tags: ['dashboards', 'alerts', 'data sources'] },
+        { id: 'prometheus', name: 'Prometheus', desc: 'Time-series database and monitoring system. Collects metrics from targets via HTTP scraping with powerful PromQL querying.',      icon: 'P', color: '#F0B75E', tags: ['metrics', 'scraping', 'alerting'] },
+        { id: 'loki',       name: 'Loki',       desc: 'Log aggregation system. Like Prometheus but for logs — indexes metadata rather than content for efficient searching.',            icon: 'L', color: '#7A4B9A', tags: ['logs', 'aggregation', 'grafana'] },
+        { id: 'wazuh',      name: 'Wazuh',      desc: 'Security monitoring and SIEM platform. Intrusion detection, vulnerability detection, file integrity monitoring, and compliance.', icon: 'W', color: '#1EA8A0', tags: ['SIEM', 'IDS', 'FIM', 'compliance'] },
+        { id: 'nodeexp',    name: 'Node Exporter', desc: 'Prometheus system metrics exporter. Collects CPU, memory, disk, network, and other Linux kernel statistics.',                   icon: 'N', color: '#6FA8E0', tags: ['metrics', 'system', 'prometheus'] },
+        { id: 'ollama',     name: 'Ollama',     desc: 'Local LLM inference engine. Run open-source models like Llama, Mistral, and Gemma directly on your machine via Docker.',        icon: 'O', color: '#5FD9A4', tags: ['LLM', 'inference', 'AI'] },
+        { id: 'opendesign', name: 'Open Design', desc: 'Agentic design AI workspace. Generate, iterate, and manage design systems through natural language prompts.',                   icon: 'D', color: '#7A4B9A', tags: ['design', 'AI', 'agents'] },
+        { id: 'nginx',      name: 'NGINX',      desc: 'High-performance web server, reverse proxy, and load balancer. Handles TLS, caching, and traffic routing.',                     icon: 'N', color: '#6FA8E0', tags: ['proxy', 'load balancer', 'TLS'] },
+        { id: 'docker',     name: 'Docker',     desc: 'Container runtime powering the entire stack. All services run as isolated containers managed via Compose.',                       icon: 'D', color: '#1D7AC4', tags: ['containers', 'compose', 'isolation'] },
+      ];
+
+      const grid = document.getElementById('apps-grid');
+      grid.innerHTML = '';
+      apps.forEach(a => {
+        const regApp = AppRegistry.APP_LIST.find(r => r.id === a.id) || { port: '?', url: '#' };
+        const card = document.createElement('div');
+        card.className = `app-card-large ${a.id}-card`;
+        const bgRGB = `${parseInt(a.color.slice(1,3),16)}, ${parseInt(a.color.slice(3,5),16)}, ${parseInt(a.color.slice(5,7),16)}`;
+        card.innerHTML = `
+          <span class="reg-badge reg-no" id="launch-badge-${a.id}">○ Register</span>
+          <div class="app-icon-lg" style="background:rgba(${bgRGB},0.15);color:${a.color};border:1px solid rgba(${bgRGB},0.3);">${a.icon}</div>
+          <div class="app-name-lg">${a.name}</div>
+          <div class="app-desc-lg">${a.desc}</div>
+          <div class="app-meta">
+            <span><i class="fas fa-plug"></i> ${regApp.url}</span>
+            <span id="launch-status-${a.id}"><i class="fas fa-circle" style="font-size:8px;color:var(--warn);vertical-align:middle;margin-right:4px;"></i> probing…</span>
+          </div>
+          <button class="btn-launch" id="launch-btn-${a.id}"><i class="fas fa-external-link-alt"></i> Launch ${a.name}</button>
+        `;
+        const btn = card.querySelector('.btn-launch');
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const appEmail = AppRegistry.getAppEmail(a.id);
+          let url = regApp.url;
+          if (appEmail) {
+            const sep = url.includes('?') ? '&' : '?';
+            url += `${sep}_email=${encodeURIComponent(appEmail)}`;
+          }
+          window.open(url, '_blank');
+        });
+        // Click on card itself also launches
+        card.addEventListener('click', () => btn.click());
+        grid.appendChild(card);
+
+        // Probe status
+        AppRegistry.probeStatus(a.id, regApp.url).then(status => {
+          const el = document.getElementById(`launch-status-${a.id}`);
+          if (el) {
+            const iconColor = status === 'online' ? 'var(--ok)' : status === 'offline' ? 'var(--crit)' : 'var(--warn)';
+            el.innerHTML = `<i class="fas fa-circle" style="font-size:8px;color:${iconColor};vertical-align:middle;margin-right:4px;"></i> ${status}`;
+          }
+        });
+
+        // Registration badge
+        const regd = AppRegistry.isRegistered(a.id);
+        const badge = document.getElementById(`launch-badge-${a.id}`);
+        if (badge) {
+          badge.textContent = regd ? '✓ Registered' : '○ Register';
+          badge.className = `reg-badge ${regd ? 'reg-yes' : 'reg-no'}`;
+        }
+      });
+    },
+
+    // ==========================================================
+    // 6. NETWORK PAGE
+    // ==========================================================
+    initNetwork: function() {
+      this.netState = {
+        totalRx: 1250, totalTx: 840, activeConns: 342,
+        interfaces: [
+          { name: 'eth0', ip: '192.168.1.100', status: 'up', rx: 450, tx: 320, conns: 187 },
+          { name: 'eth1', ip: '10.0.0.1', status: 'up', rx: 320, tx: 210, conns: 89 },
+          { name: 'docker0', ip: '172.17.0.1', status: 'up', rx: 890, tx: 540, conns: 56 },
+          { name: 'lo', ip: '127.0.0.1', status: 'up', rx: 12, tx: 12, conns: 10 },
+          { name: 'wlan0', ip: '—', status: 'down', rx: 0, tx: 0, conns: 0 },
+        ],
+      };
+
+      this.renderNetStats();
+      this.renderNetTable();
+
+      setInterval(() => this.updateNet(), 2500);
+    },
+
+    renderNetStats: function() {
+      const ns = this.netState;
+      const stats = [
+        { label: 'Total Rx/s', value: ns.totalRx, unit: ' MB', icon: 'download', color: '#6FA8E0' },
+        { label: 'Total Tx/s', value: ns.totalTx, unit: ' MB', icon: 'upload', color: '#F0B75E' },
+        { label: 'Active Connections', value: ns.activeConns, unit: '', icon: 'plug', color: '#5FD9A4' },
+      ];
+
+      const grid = document.getElementById('net-stats');
+      grid.innerHTML = '';
+      stats.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'net-card';
+        card.innerHTML = `
+          <div class="net-title"><i class="fas fa-${s.icon}" style="color:${s.color};margin-right:6px;"></i> ${s.label}</div>
+          <div class="net-value" id="net-${s.label.toLowerCase().replace(/\s+/g,'-')}">${s.value}<small>${s.unit}</small></div>
+          <div class="net-change" id="net-chg-${s.label.toLowerCase().replace(/\s+/g,'-')}">stable</div>
+        `;
+        grid.appendChild(card);
+      });
+    },
+
+    renderNetTable: function() {
+      const tbody = document.getElementById('interface-body');
+      tbody.innerHTML = '';
+      this.netState.interfaces.forEach(iface => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="if-name">${iface.name}</td>
+          <td>${iface.ip}</td>
+          <td><span class="if-status ${iface.status}"><span class="dot"></span> ${iface.status.toUpperCase()}</span></td>
+          <td>${iface.rx.toFixed(1)} MB/s</td>
+          <td>${iface.tx.toFixed(1)} MB/s</td>
+          <td>${iface.conns}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    },
+
+    updateNet: function() {
+      // Simulate changing values
+      const ns = this.netState;
+      const prevRx = ns.totalRx;
+      const prevTx = ns.totalTx;
+      const prevConns = ns.activeConns;
+
+      ns.totalRx = this.rw(ns.totalRx, 500, 2500, 120);
+      ns.totalTx = this.rw(ns.totalTx, 300, 1800, 80);
+      ns.activeConns = Math.round(this.rw(ns.activeConns, 150, 600, 30));
+      ns.interfaces.forEach(iface => {
+        if (iface.status === 'up') {
+          iface.rx = this.rw(iface.rx, 10, 1200, 40);
+          iface.tx = this.rw(iface.tx, 10, 800, 30);
+          iface.conns = Math.round(this.rw(iface.conns, 5, 200, 15));
+        }
+      });
+
+      // Update stats display
+      const updateStat = (id, val, prev, unit) => {
+        const el = document.getElementById(id);
+        const chg = document.getElementById(id.replace('net-', 'net-chg-'));
+        if (el) el.innerHTML = val.toFixed(1) + (unit ? `<small>${unit}</small>` : '');
+        if (chg) {
+          const delta = val - prev;
+          chg.textContent = (delta >= 0 ? '▲ +' : '▼ ') + Math.abs(delta).toFixed(1) + unit;
+          chg.className = 'net-change ' + (delta > 0 ? 'up' : 'down');
+        }
+      };
+
+      updateStat('net-total-rx/s', ns.totalRx, prevRx, ' MB');
+      updateStat('net-total-tx/s', ns.totalTx, prevTx, ' MB');
+      updateStat('net-active-connections', ns.activeConns, prevConns, '');
+
+      this.renderNetTable();
+    },
+
+    // ---- Math helper ----
+    rw: function(val, min, max, jitter) {
+      val += (Math.random() - 0.5) * jitter;
+      return Math.max(min, Math.min(max, val));
+    },
+
+    // ==========================================================
+    // 7. WEEK TRACKER
+    // ==========================================================
+    initWeek: function() {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const now = new Date();
+      // Find the most recent Sunday
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+
+      const grid = document.getElementById('week-grid');
+      grid.innerHTML = '';
+
+      // Generate mock data for 7 days
+      this.weekData = [];
+      const services = ['Grafana', 'Prometheus', 'NGINX', 'Docker'];
+
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startOfWeek);
+        date.setDate(startOfWeek.getDate() + i);
+        const dayData = {
+          index: i,
+          date: date,
+          dayName: days[date.getDay()],
+          dateStr: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          isToday: i === now.getDay(),
+          uptime: 95 + Math.random() * 5,
+          services: services.map(s => ({
+            name: s,
+            status: Math.random() > 0.15 ? 'ok' : (Math.random() > 0.5 ? 'warn' : 'crit'),
+            hours: Math.floor(20 + Math.random() * 4),
+          })),
+        };
+        this.weekData.push(dayData);
+      }
+
+      this.renderWeekGrid();
+      this.renderWeekSummary();
+    },
+
+    renderWeekGrid: function() {
+      const grid = document.getElementById('week-grid');
+      grid.innerHTML = '';
+
+      this.weekData.forEach(day => {
+        const div = document.createElement('div');
+        div.className = 'week-day' + (day.isToday ? ' today' : '');
+
+        // Count statuses for bar chart
+        const okCount = day.services.filter(s => s.status === 'ok').length;
+        const warnCount = day.services.filter(s => s.status === 'warn').length;
+        const critCount = day.services.filter(s => s.status === 'crit').length;
+        const total = day.services.length;
+
+        div.innerHTML = `
+          <div class="day-name">${day.dayName}</div>
+          <div class="day-date">${day.dateStr}${day.isToday ? ' · Today' : ''}</div>
+          <div class="day-bar">
+            ${day.services.map(s => `<div class="bar-segment ${s.status}" style="flex:1"></div>`).join('')}
+          </div>
+          <div class="day-stats">
+            <span class="up-pct">${day.uptime.toFixed(1)}%</span> uptime
+          </div>
+        `;
+        grid.appendChild(div);
+      });
+    },
+
+    renderWeekSummary: function() {
+      const summary = document.getElementById('week-summary');
+      const totalServices = this.weekData[0].services.length;
+      const totalChecks = this.weekData.length * totalServices;
+      const okChecks = this.weekData.reduce((sum, d) => sum + d.services.filter(s => s.status === 'ok').length, 0);
+      const warnChecks = this.weekData.reduce((sum, d) => sum + d.services.filter(s => s.status === 'warn').length, 0);
+      const critChecks = this.weekData.reduce((sum, d) => sum + d.services.filter(s => s.status === 'crit').length, 0);
+      const avgUptime = this.weekData.reduce((sum, d) => sum + d.uptime, 0) / this.weekData.length;
+
+      summary.innerHTML = `
+        <div class="summary-card">
+          <div class="s-label">Average Uptime</div>
+          <div class="s-value" style="color:var(--ok)">${avgUptime.toFixed(1)}%</div>
+          <div class="s-sub">across all services</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">Healthy Checks</div>
+          <div class="s-value" style="color:var(--ok)">${okChecks}<small style="color:var(--text-mid);font-size:14px;">/${totalChecks}</small></div>
+          <div class="s-sub">${(okChecks/totalChecks*100).toFixed(1)}% ok rate</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">Warnings</div>
+          <div class="s-value" style="color:var(--warn)">${warnChecks}</div>
+          <div class="s-sub">${(warnChecks/totalChecks*100).toFixed(1)}% of checks</div>
+        </div>
+        <div class="summary-card">
+          <div class="s-label">Critical Issues</div>
+          <div class="s-value" style="color:var(--crit)">${critChecks}</div>
+          <div class="s-sub">${(critChecks/totalChecks*100).toFixed(1)}% of checks</div>
+        </div>
+      `;
+    },
+
+    // ==========================================================
+    // 8. SETTINGS TABS
+    // ==========================================================
+    // (Settings tabs are in the HTML, just need click handlers)
+
+    // ==========================================================
+    // 9. CYBERSEC EXPLAINER
+    // ==========================================================
+    initCyberSec: function() {
+      const MONITOR = this;
+
+      // ── Summary stats ─────────────────────────────────────
+      const summaryData = [
+        { icon: '🛡️', value: '4', label: 'Security Layers', sub: 'Metrics · Logs · Alerts · Events' },
+        { icon: '📡', value: '8', label: 'Services Monitored', sub: 'Containers + Host + Wazuh' },
+        { icon: '🔍', value: '12', label: 'Detection Rules', sub: 'Anomaly · Rate · Threshold' },
+        { icon: '📊', value: '150+', label: 'Metrics Collected', sub: 'CPU · RAM · Net · Disk · Services' },
+      ];
+      const summaryHtml = summaryData.map(d =>
+        `<div class="cs-summary-card">
+          <div class="cs-sum-icon">${d.icon}</div>
+          <div class="cs-sum-value">${d.value}</div>
+          <div class="cs-sum-label">${d.label}</div>
+          <div class="cs-sum-sub">${d.sub}</div>
+        </div>`
+      ).join('');
+      document.getElementById('cs-summary').innerHTML = summaryHtml;
+
+      // ── Four Pillars ──────────────────────────────────────
+      const pillars = [
+        {
+          icon: '📈', name: 'Metrics Analysis', tools: 'Prometheus · Node Exporter · Grafana',
+          color: '#F05F5E',
+          desc: 'Real-time anomaly detection through metric telemetry. Prometheus scrapes CPU, memory, disk, and network from every node. Grafana visualizes baselines and surfaces deviations. Combine with recording rules for early-warning thresholds that trigger before a breach occurs.'
+        },
+        {
+          icon: '📋', name: 'Log Forensics', tools: 'Loki · Promtail · Grafana',
+          color: '#6FA8E0',
+          desc: 'Centralized log aggregation from all containers and system logs. Loki indexes log streams by labels for high-speed filtering. Promtail ships logs and enriches them with metadata. Use LogQL to trace attack timelines, correlate events across services, and reconstruct incidents.'
+        },
+        {
+          icon: '🔔', name: 'Alerting & Response', tools: 'Grafana Alerts · Prometheus',
+          color: '#F0B75E',
+          desc: 'Multi-channel alerting with Grafana Alerting and Prometheus Alertmanager. Route critical alerts to email, webhook, or OpsGenie. Set up notification policies with silences and inhibitions to reduce noise. Alert on rate-of-change, threshold breaches, and sudden drops using PromQL.'
+        },
+        {
+          icon: '🛡️', name: 'Security Events (SIEM)', tools: 'Wazuh · Wazuh API',
+          color: '#1EA8A0',
+          desc: 'Host-level intrusion detection with Wazuh manager and agents. File integrity monitoring (FIM) detects unauthorized changes. Rootkit detection, vulnerability scanning, and compliance checks (PCI DSS, CIS). Wazuh API provides programmatic access to security alerts for dashboard integration.'
+        },
+      ];
+      document.getElementById('cs-pillars').innerHTML = pillars.map(p =>
+        `<div class="cs-pillar-card" style="border-left-color:${p.color}">
+          <div class="pillar-icon">${p.icon}</div>
+          <div class="pillar-name" style="color:${p.color}">${p.name}</div>
+          <div class="pillar-tools">${p.tools}</div>
+          <div class="pillar-desc">${p.desc}</div>
+        </div>`
+      ).join('');
+
+      // ── Tool Security Matrix ──────────────────────────────
+      const tools = [
+        {
+          name: 'Prometheus', ico: 'P', color: '#E6522C',
+          port: '9090',
+          sections: [
+            { label: 'Monitors', items: ['CPU, memory, disk, network metrics (every 15s)', 'Node Exporter metrics via /metrics endpoint', 'Custom application metrics (request rate, latency, errors)', 'Target health (up/down) from all scrape targets'] },
+            { label: 'Threats Detected', items: ['Resource exhaustion (CPU/memory spikes → DoS)', 'Anomalous traffic patterns (rate anomalies)', 'Service outages (target down alerts)', 'Certificate expiry (blackbox exporter)'] },
+            { label: 'Security Queries', items: ['rate(node_cpu_seconds_total{mode="user"}[5m])', 'node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100', 'avg by(instance) (rate(node_network_receive_bytes_total[5m]))'] },
+          ],
+        },
+        {
+          name: 'Loki', ico: 'L', color: '#6FA8E0',
+          port: '3100',
+          sections: [
+            { label: 'Monitors', items: ['All container stdout/stderr logs shipped by Promtail', 'System journal logs per host', 'Log streams tagged by container name, host, and app', 'Structured log parsing (JSON log lines)'] },
+            { label: 'Threats Detected', items: ['Brute-force attempts (repeated auth failures in logs)', 'Suspicious commands (sudo, ssh, docker exec)', 'Error bursts indicating compromise or crash', 'Port scan detection via firewall deny logs'] },
+            { label: 'Security Queries', items: ['{container="api"} |= "error"', '{job="system"} |~ "(Failed password|Invalid user)"', 'rate({job="nginx"} |= "401" [5m])'] },
+          ],
+        },
+        {
+          name: 'Grafana', ico: 'G', color: '#F0B75E',
+          port: '3000',
+          sections: [
+            { label: 'Monitors', items: ['Unified dashboards for all monitoring data', 'Alerting engine with multi-channel notifications', 'Annotated timeline overlays (deployments, incidents)', 'Explore mode for ad-hoc PromQL and LogQL queries'] },
+            { label: 'Threats Detected', items: ['Real-time alert firing through dashboard panels', 'Trend analysis (week-over-week anomaly detection)', 'Composite alerts combining metrics + logs', 'Security dashboard consolidation (single pane of glass)'] },
+            { label: 'Security Utilities', items: ['Pre-built security dashboard templates (Node Exporter, Loki)', 'Alert grouping and silences to reduce fatigue', 'Team collaboration via dashboard annotations', 'SSO/OAuth authentication for access control'] },
+          ],
+        },
+        {
+          name: 'Node Exporter', ico: 'N', color: '#95E06C',
+          port: '9100',
+          sections: [
+            { label: 'Monitors', items: ['CPU utilization per core + overall', 'Memory (total, used, available, cached)', 'Disk I/O (read/write rates, latency, iops)', 'Network (bytes in/out, errors, drops per interface)'] },
+            { label: 'Threats Detected', items: ['CPU pegging (miner malware consuming 100% CPU)', 'Disk exhaustion (DoS via storage fill)', 'Network flood (abnormal RX/TX rates)', 'Process count anomaly (fork bomb, hidden processes)'] },
+            { label: 'Key Metrics', items: ['node_cpu_seconds_total', 'node_memory_MemAvailable_bytes', 'node_disk_io_time_seconds_total', 'node_network_receive_bytes_total'] },
+          ],
+        },
+        {
+          name: 'Wazuh', ico: 'W', color: '#1EA8A0',
+          port: '55000',
+          sections: [
+            { label: 'Monitors', items: ['File integrity (FIM) — tracks file changes, permissions, owners', 'Vulnerability detection — CVE scanning of installed packages', 'Intrusion detection — rootkit, malware, and hidden process scans', 'Compliance — PCI DSS, CIS benchmarks, GDPR readiness'] },
+            { label: 'Threats Detected', items: ['Unauthorized file changes (backdoor insertion, config tamper)', 'Known-vulnerability packages (CVE database matching)', 'Rootkits and kernel-level threats (unhide comparisons)', 'Policy violations (SCA — security configuration assessment)'] },
+            { label: 'API Integrations', items: ['REST API on port 55000 (https)', 'Security alerts as JSON for dashboard consumption', 'Agent status monitoring and deployment', 'Custom decoders and rules (expand detection surface)'] },
+          ],
+        },
+      ];
+      document.getElementById('cs-matrix').innerHTML = tools.map(t =>
+        `<div class="cs-tool-card">
+          <div class="cs-tool-head">
+            <div class="cs-tool-icon" style="background:${t.color}22;color:${t.color}">${t.ico}</div>
+            <div>
+              <div class="cs-tool-name" style="color:${t.color}">${t.name}</div>
+              <div class="cs-tool-port">port ${t.port} · ${t.sections[0].items.length} monitors</div>
+            </div>
+          </div>
+          ${t.sections.map(s => `
+            <div class="cs-tool-section">
+              <div class="cs-sec-label">${s.label}</div>
+              <ul>${s.items.map(i => `<li>${i}</li>`).join('')}</ul>
+            </div>
+          `).join('')}
+        </div>`
+      ).join('');
+
+      // ── Detection Playbook ────────────────────────────────
+      const playbooks = [
+        {
+          title: 'Brute-Force Attack on SSH',
+          severity: 'high',
+          phases: [
+            { icon: '🕵️', type: 'detect', text: '<span class="pb-action">Rate spike</span> on node_netstat_Tcp_RetransSegments — Prometheus detects connection flood', detail: 'PromQL: rate(node_network_receive_bytes_total[1m]) > 2x baseline' },
+            { icon: '🔎', type: 'investigate', text: '<span class="pb-action">LogQL search</span> for "Failed password" in Loki system logs', detail: 'Query: {job="system"} |= "Failed password" | pattern <ip> <user>' },
+            { icon: '⚡', type: 'respond', text: '<span class="pb-action">Grafana Alert</span> triggers webhook → Fail2ban or iptables block source IP', detail: 'Automated response via Alertmanager webhook receiver' },
+            { icon: '🛡️', type: 'prevent', text: '<span class="pb-action">Wazuh SCA</span> checks SSH config (PermitRootLogin, PubkeyAuth)', detail: 'CIS benchmark for SSH hardening' },
+          ],
+        },
+        {
+          title: 'Container Escape / RCE via Web App',
+          severity: 'critical',
+          phases: [
+            { icon: '🕵️', type: 'detect', text: '<span class="pb-action">CPU spike</span> on affected container — Prometheus detects anomalous process activity', detail: 'PromQL: rate(container_cpu_usage_seconds_total[1m]) > 0.8' },
+            { icon: '🔎', type: 'investigate', text: '<span class="pb-action">Loki log search</span> for "exec", "bash", "/bin/sh" in web app logs', detail: 'Query: {container="web"} |= "exec" | json' },
+            { icon: '⚡', type: 'respond', text: '<span class="pb-action">Container restart</span> via Docker API + network isolation', detail: 'Grafana alert → webhook → docker restart <container>' },
+            { icon: '🛡️', type: 'prevent', text: '<span class="pb-action">Wazuh FIM</span> detects modified binaries or new SUID files', detail: 'File Integrity Monitoring on /usr/bin, /etc' },
+          ],
+        },
+        {
+          title: 'Data Exfiltration via Network',
+          severity: 'high',
+          phases: [
+            { icon: '🕵️', type: 'detect', text: '<span class="pb-action">Network egress spike</span> — Node Exporter shows abnormal outbound traffic', detail: 'PromQL: rate(node_network_transmit_bytes_total[5m]) > 100MB/s' },
+            { icon: '🔎', type: 'investigate', text: '<span class="pb-action">Loki DNS logs</span> show connections to suspicious domains', detail: 'Query: {job="dns"} |= "NXDOMAIN" | regexp' },
+            { icon: '⚡', type: 'respond', text: '<span class="pb-action">Block outbound IP</span> via iptables or cloud firewall API', detail: 'Manual or automated through Alertmanager webhook' },
+            { icon: '🛡️', type: 'prevent', text: '<span class="pb-action">Wazuh vulnerability scan</span> identifies CVE in exposed service used for pivot', detail: 'CVE database matching on installed packages' },
+          ],
+        },
+        {
+          title: 'Ransomware: Mass File Encryption',
+          severity: 'critical',
+          phases: [
+            { icon: '🕵️', type: 'detect', text: '<span class="pb-action">Disk write spike</span> + file count change — Node Exporter + Wazuh FIM alert', detail: 'PromQL: rate(node_disk_written_bytes_total[1m]) > 5x baseline' },
+            { icon: '🔎', type: 'investigate', text: '<span class="pb-action">Loki audit logs</span> show mass file renames/modifications in short window', detail: 'Query: {job="audit"} |= "rename" | json' },
+            { icon: '⚡', type: 'respond', text: '<span class="pb-action">Isolate host</span> via network segmentation + snapshot filesystem', detail: 'Alert → webhook → ansible playbook for isolation' },
+            { icon: '🛡️', type: 'prevent', text: '<span class="pb-action">Wazuh SCA</span> checks for weak file permissions, missing AV, unpatched SMB', detail: 'CIS + PCI DSS compliance checks' },
+          ],
+        },
+      ];
+      document.getElementById('cs-playbook').innerHTML = playbooks.map(pb =>
+        `<div class="cs-playbook-card">
+          <div class="pb-title">${pb.title}</div>
+          <div class="pb-severity ${pb.severity}">${pb.severity}</div>
+          ${pb.phases.map(ph =>
+            `<div class="pb-phase">
+              <div class="pb-phase-icon ${ph.type}">${ph.icon}</div>
+              <div class="pb-phase-text">
+                ${ph.text}
+                <div class="pb-detail">${ph.detail}</div>
+              </div>
+            </div>`
+          ).join('')}
+        </div>`
+      ).join('');
+    },
+
+    // ==========================================================
+    // 10. SECURITY SUGGESTIONS
+    // ==========================================================
+    initSecurity: function() {
+      const tools = [
+        {
+          name: 'Wazuh',
+          icon: 'fa-shield',
+          color: '#1EA8A0',
+          desc: 'Open-source security monitoring platform with intrusion detection, log analysis, vulnerability detection, and compliance monitoring (PCI DSS, HIPAA, GDPR). Integrates seamlessly with your existing ELK/Wazuh stack.',
+          tags: ['SIEM', 'IDS', 'Compliance', 'Log Analysis'],
+        },
+        {
+          name: 'Fail2ban',
+          icon: 'fa-ban',
+          color: '#F0645F',
+          desc: 'Intrusion prevention framework that blocks IP addresses showing malicious behavior like repeated failed login attempts, bots, and brute-force attacks. Essential for securing SSH, NGINX, and web apps.',
+          tags: ['Brute-force', 'SSH', 'Rate Limiting'],
+        },
+        {
+          name: 'CrowdSec',
+          icon: 'fa-users-slash',
+          color: '#F0B75E',
+          desc: 'Modern, collaborative IPS that analyzes behavior, responds to attacks, and shares threat intelligence with the community. Lightweight alternative to Fail2ban with a global blocklist.',
+          tags: ['IPS', 'Threat Intel', 'Community'],
+        },
+        {
+          name: 'Suricata',
+          icon: 'fa-bolt',
+          color: '#6FA8E0',
+          desc: 'High-performance network IDS/IPS that inspects traffic in real-time. Detects signatures, anomalies, and protocol violations. Can inline-drop malicious packets.',
+          tags: ['IDS/IPS', 'Network', 'Signature-based'],
+        },
+        {
+          name: 'ClamAV',
+          icon: 'fa-virus',
+          color: '#5FD9A4',
+          desc: 'Open-source antivirus engine for detecting trojans, viruses, malware, and other malicious threats. Integrates with mail servers, file shares, and on-access scanning.',
+          tags: ['Antivirus', 'Malware', 'File Scanning'],
+        },
+        {
+          name: 'Lynis',
+          icon: 'fa-clipboard-check',
+          color: '#7A4B9A',
+          desc: 'Security auditing tool for Linux/Unix systems. Performs comprehensive scans of system configurations, checks for vulnerabilities, and provides hardening suggestions with scores.',
+          tags: ['Auditing', 'Hardening', 'Compliance'],
+        },
+        {
+          name: 'RKHunter',
+          icon: 'fa-bug',
+          color: '#1D7AC4',
+          desc: 'Rootkit Hunter — scans for rootkits, backdoors, and local exploits. Checks for hidden files, suspicious kernel modules, and known malware signatures.',
+          tags: ['Rootkits', 'Malware', 'Kernel'],
+        },
+        {
+          name: 'OpenVAS / Greenbone',
+          icon: 'fa-radiation',
+          color: '#F0645F',
+          desc: 'Full-featured vulnerability scanner with 50,000+ plugins. Performs authenticated and unauthenticated network scans, generates detailed reports with CVSS scores.',
+          tags: ['Vulnerability', 'Scanner', 'CVSS'],
+        },
+        {
+          name: 'Zeek (Bro)',
+          icon: 'fa-eye',
+          color: '#F0B75E',
+          desc: 'Network analysis framework that monitors all traffic on a link. Creates detailed logs of connections, HTTP requests, DNS queries, SSL certs, and more. Ideal for threat hunting.',
+          tags: ['Network', 'Monitoring', 'Threat Hunting'],
+        },
+      ];
+
+      const grid = document.getElementById('sec-grid');
+      grid.innerHTML = '';
+      tools.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'sec-card';
+        const rgb = `${parseInt(t.color.slice(1,3),16)},${parseInt(t.color.slice(3,5),16)},${parseInt(t.color.slice(5,7),16)}`;
+        card.innerHTML = `
+          <div class="sec-icon" style="background:rgba(${rgb},0.15);color:${t.color};">
+            <i class="fas ${t.icon}"></i>
+          </div>
+          <div class="sec-name">${t.name}</div>
+          <div class="sec-desc">${t.desc}</div>
+          <div class="sec-tags">
+            ${t.tags.map(tag => `<span class="sec-tag">${tag}</span>`).join('')}
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    },
+  };
+
+  // Initialize settings tabs
+  document.querySelectorAll('.settings-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Start app when DOM ready
+  document.addEventListener('DOMContentLoaded', () => app.init());
+  // If DOM already loaded
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    app.init();
+  }
+})();
+
+// ==========================================================
+// APP REGISTRY MODULE
+// ==========================================================
+const AppRegistry = (function() {
+  // ─── App definitions ────────────────────────────────────
+  const APP_LIST = [
+    { id: 'grafana',    name: 'Grafana',    icon: 'G', port: 3000, color: '#F0645F', url: 'http://localhost:3000',    desc: 'Metrics & dashboards' },
+    { id: 'prometheus', name: 'Prometheus', icon: 'P', port: 9090, color: '#F0B75E', url: 'http://localhost:9090',    desc: 'Time-series DB & alerts' },
+    { id: 'loki',       name: 'Loki',       icon: 'L', port: 3100, color: '#7A4B9A', url: 'http://localhost:3100',    desc: 'Log aggregation' },
+    { id: 'wazuh',      name: 'Wazuh',      icon: 'W', port: 55000,color: '#1EA8A0', url: 'https://localhost:55000',  desc: 'Security monitoring (SIEM)' },
+    { id: 'nodeexp',    name: 'Node Exp.',  icon: 'N', port: 9100, color: '#6FA8E0', url: 'http://localhost:9100',    desc: 'System metrics exporter' },
+    { id: 'ollama',     name: 'Ollama',     icon: 'O', port: 11434,color: '#5FD9A4', url: 'http://localhost:11434',  desc: 'Local LLM inference' },
+    { id: 'opendesign', name: 'Open Design',icon: 'D', port: 7456, color: '#7A4B9A', url: 'http://localhost:7456',   desc: 'Design AI workspace' },
+    { id: 'nginx',      name: 'NGINX',      icon: 'N', port: 80,   color: '#6FA8E0', url: 'http://localhost',        desc: 'Reverse proxy & LB' },
+    { id: 'docker',     name: 'Docker',     icon: 'D', port: 2375, color: '#1D7AC4', url: 'http://localhost:2375',   desc: 'Container engine' },
+  ];
+
+  // ─── Storage helpers ────────────────────────────────────
+  function load() {
+    try { return JSON.parse(localStorage.getItem('monitor_registry')) || { email: '', apps: {} }; }
+    catch { return { email: '', apps: {} }; }
+  }
+  function save(data) {
+    localStorage.setItem('monitor_registry', JSON.stringify(data));
+  }
+
+  // ─── Status probing ─────────────────────────────────────
+  const statusCache = {};
+  function probeStatus(appId, url) {
+    if (statusCache[appId] && Date.now() - statusCache[appId].ts < 15000) {
+      return Promise.resolve(statusCache[appId].status);
+    }
+    statusCache[appId] = { status: 'probing', ts: Date.now() };
+    const isSecure = url.startsWith('https');
+    // For HTTPS self-signed, try regular fetch (401/3xx = online)
+    // For HTTP, use no-cors for cross-origin safety
+    const opts = isSecure
+      ? { method: 'GET', signal: AbortSignal.timeout(3000) }
+      : { method: 'HEAD', mode: 'no-cors', signal: AbortSignal.timeout(3000) };
+    return fetch(url, opts)
+      .then(res => {
+        // Any response (even 401/403/500) means the server is running
+        const s = (res.ok || res.type === 'opaque' || res.status >= 400) ? 'online' : 'offline';
+        statusCache[appId] = { status: s, ts: Date.now() };
+        return s;
+      })
+      .catch(() => {
+        // For HTTPS with self-signed certs, the fetch may fail due to TLS
+        // Even a connection refusal vs timeout tells us something
+        // Default to offline
+        statusCache[appId] = { status: 'offline', ts: Date.now() };
+        return 'offline';
+      });
+  }
+
+  // ─── Get email for an app ──────────────────────────────
+  function getAppEmail(appId) {
+    const data = load();
+    return data.apps[appId]?.email || data.email || '';
+  }
+
+  // ─── Check if app is registered ────────────────────────
+  function isRegistered(appId) {
+    const data = load();
+    return !!(data.apps[appId]?.email);
+  }
+
+  // ─── Render registry modal ──────────────────────────────
+  function renderRegistry() {
+    const data = load();
+    const globalEmail = document.getElementById('registry-global-email');
+    if (globalEmail) globalEmail.value = data.email || '';
+
+    const list = document.getElementById('registry-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    APP_LIST.forEach(app => {
+      const item = document.createElement('div');
+      item.className = 'registry-item';
+      item.id = `reg-item-${app.id}`;
+
+      const bgRGB = `${parseInt(app.color.slice(1,3),16)},${parseInt(app.color.slice(3,5),16)},${parseInt(app.color.slice(5,7),16)}`;
+      const reg = data.apps[app.id];
+      const appEmail = reg?.email || '';
+
+      item.innerHTML = `
+        <div class="reg-icon" style="background:rgba(${bgRGB},0.15);color:${app.color};border:1px solid rgba(${bgRGB},0.3);">${app.icon}</div>
+        <div class="reg-info">
+          <div class="reg-name">${app.name}</div>
+          <div class="reg-url"><i class="fas fa-plug"></i> ${app.url}</div>
+        </div>
+        <input type="email" class="reg-email" id="reg-email-${app.id}" placeholder="email for ${app.name}" value="${appEmail}">
+        <div class="reg-status">
+          <span class="stat-dot" id="reg-dot-${app.id}"></span>
+          <span id="reg-label-${app.id}">checking…</span>
+        </div>
+        <button class="reg-btn" id="reg-btn-${app.id}">${appEmail ? 'Update' : 'Register'}</button>
+      `;
+      list.appendChild(item);
+
+      // Start probing
+      const dot = item.querySelector('.stat-dot');
+      const label = item.querySelector('.reg-status span:last-child');
+      probeStatus(app.id, app.url).then(status => {
+        dot.className = `stat-dot ${status}`;
+        label.textContent = status === 'online' ? 'Online' : status === 'offline' ? 'Offline' : 'Probing…';
+      });
+    });
+  }
+
+  // ─── Open modal ──────────────────────────────────────────
+  function open() {
+    const overlay = document.getElementById('registry-overlay');
+    if (!overlay) return;
+    renderRegistry();
+    overlay.classList.add('open');
+  }
+
+  function close() {
+    document.getElementById('registry-overlay')?.classList.remove('open');
+  }
+
+  // ─── Update app card badges ─────────────────────────────
+  function updateCardBadge(appId, containerSelector) {
+    const cards = document.querySelectorAll(`${containerSelector} .app-card, ${containerSelector} .app-card-large`);
+    cards.forEach(card => {
+      if (card.classList.contains(appId) || card.classList.contains(appId + '-card')) {
+        let badge = card.querySelector('.reg-badge');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'reg-badge';
+          card.appendChild(badge);
+        }
+        const regd = isRegistered(appId);
+        badge.textContent = regd ? '✓ Registered' : '○ Register';
+        badge.className = `reg-badge ${regd ? 'reg-yes' : 'reg-no'}`;
+      }
+    });
+  }
+
+  // ─── Init ────────────────────────────────────────────────
+  function init() {
+    // Open button
+    document.getElementById('btn-registry-open')?.addEventListener('click', open);
+
+    // Close button
+    document.getElementById('registry-close')?.addEventListener('click', close);
+
+    // Close on overlay click
+    document.getElementById('registry-overlay')?.addEventListener('click', function(e) {
+      if (e.target === this) close();
+    });
+
+    // Save button
+    document.getElementById('registry-save')?.addEventListener('click', function() {
+      const data = load();
+      const globalEmail = document.getElementById('registry-global-email')?.value.trim() || '';
+      data.email = globalEmail;
+
+      APP_LIST.forEach(app => {
+        const emailEl = document.getElementById(`reg-email-${app.id}`);
+        if (!emailEl) return;
+        const email = emailEl.value.trim();
+        if (email) {
+          data.apps[app.id] = { email, registeredAt: new Date().toISOString() };
+        } else {
+          delete data.apps[app.id];
+        }
+        // Show saved feedback
+        const btn = document.getElementById(`reg-btn-${app.id}`);
+        if (btn) {
+          btn.textContent = email ? 'Saved ✓' : 'Register';
+          setTimeout(() => { if (document.getElementById(`reg-btn-${app.id}`)) btn.textContent = email ? 'Update' : 'Register'; }, 1500);
+        }
+      });
+
+      save(data);
+      // Refresh badges on all grids
+      APP_LIST.forEach(app => {
+        updateCardBadge(app.id, '#app-grid-dash');
+        updateCardBadge(app.id, '#apps-grid');
+      });
+    });
+
+    // Auto-save on email field blur
+    APP_LIST.forEach(app => {
+      document.addEventListener('change', function(e) {
+        if (e.target.id === `reg-email-${app.id}`) {
+          // Auto-save on change
+        }
+      });
+    });
+  }
+
+  return { init, open, close, getAppEmail, isRegistered, APP_LIST, probeStatus, updateCardBadge };
+})();
+
+// Init registry on DOM ready
+document.addEventListener('DOMContentLoaded', () => AppRegistry.init());
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  AppRegistry.init();
+}
+</script>
+
+<!-- ============================================================
+     APP REGISTRY MODAL
+     ============================================================ -->
+<div class="registry-overlay" id="registry-overlay">
+  <div class="registry-modal">
+    <div class="registry-header">
+      <h2><i class="fas fa-address-book"></i> App Registry</h2>
+      <button class="registry-close" id="registry-close"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="registry-body">
+      <p class="registry-desc">
+        Register your email with each service to associate your identity. When you launch an app, your registered email is pre-filled for seamless authentication.
+      </p>
+      <div class="registry-global">
+        <label><i class="fas fa-at"></i> Global Email</label>
+        <input type="email" id="registry-global-email" placeholder="you@example.com">
+      </div>
+      <div class="registry-list" id="registry-list"></div>
+    </div>
+    <div class="registry-footer">
+      <button class="btn-reg-save" id="registry-save"><i class="fas fa-check"></i> Save Registry</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
