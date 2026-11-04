@@ -39,7 +39,7 @@ https://flameeecyber.github.io/MONITOR-app/
 
 | Requirement | Minimum | Recommended |
 |-------------|---------|-------------|
-| OS | Linux (any distro) | Fedora 40+, Ubuntu 22.04+ |
+| OS | Linux (any distro) |  40+, Ubuntu 22.04+ |
 | RAM | 4 GB | 8 GB+ |
 | Disk | 10 GB free | 20 GB+ |
 | Docker | 24+ | Latest |
